@@ -5,16 +5,20 @@ export class DeployStatement {
 
   public parse(input : string) {
     let patterns = [];
-    patterns.push(new Pattern("(?:please)? deploy :appName from :branch branch to :server server", "i", {
-      "appName": { pattern: "[a-zA-Z-]+" },
-      "branch": { pattern: "[a-zA-Z-_/]+" },
-      "server": { pattern: "[a-zA-Z-_]+" },
+
+    patterns.push(new Pattern("(?:please )?deploy :appName from :branch branch to :sites(?: (?:server|site))?", "i", {
+      "appName": { 'pattern': "[a-zA-Z-]+" },
+      "branch": { 'pattern': "[a-zA-Z-_/]+" },
+      "sites": { 'pattern': "[a-zA-Z-_,]+" },
     }));
 
-    for (var i in patterns) {
+    for (let i in patterns) {
       let pattern = patterns[i];
       let matches = pattern.match(input);
       if (matches) {
+        if (matches.sites) {
+          matches.sites = matches.sites.split(/,/);
+        }
         return matches;
       }
     }
