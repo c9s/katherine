@@ -1,9 +1,10 @@
 
 import {Pattern} from "./Pattern";
+import {DeployTask} from "./DeployTask";
 
 export class DeployStatement {
 
-  public parse(input : string) {
+  public parse(input : string) : DeployTask {
     let patterns = [];
 
     patterns.push(new Pattern("(?:please )?deploy :appName from :branch branch to :sites(?: (?:server|site))?", "i", {

@@ -3,83 +3,29 @@
 var slack = require('@slack/client');
 var _ = require('underscore');
 import child_process = require('child_process');
-import {DeployAction, GitSync, GitCommands} from "typeloy";
+import {DeployAction, GitSync, GitRepo} from "typeloy";
 import {DeployStatement} from "../src/DeployStatement";
+import {DeployTask} from "../src/DeployTask";
+import {WorkerPool} from "../src/WorkerPool";
 
-var fs = require('fs');
+/*
+const RedisSMQ = require("rsmq");
+const rsmq = new RedisSMQ( {host: "127.0.0.1", port: 6379, ns: "rsmq"} );
+*/
 
-import {EventEmitter} from 'events';
+const fs = require('fs');
 
-class WorkerPool extends EventEmitter {
-
-  protected poolConfig : Object;
-
-  protected workers : Object;
-
-  protected availability : Object;
-
-  constructor(poolConfig) {
-    super();
-    this.poolConfig = poolConfig;
-    this.availability = {};
-    this.workers = {};
-    this.fork();
-  }
-
-  public onMessage(message) {
-    if (message['type'] === "finished") {
-      this.freeWorker(message['name']);
-    }
-    this.emit(message['type'] , message);
-  }
-
-  /**
-   * publish message to all workers.
-   */
-  public publish(message) {
-    _.each(this.workers, (worker) => {
-      worker.send(message);
-    });
-  }
-
-  public fork() {
-    for (let poolName in this.poolConfig) {
-      let poolDirectory = this.poolConfig[poolName];
-      let worker = child_process.fork(__dirname + '/../src/worker', [poolName, poolDirectory]);
-      worker.on('message', this.onMessage.bind(this));
-      this.workers[poolName] = worker;
-    }
-  }
-
-  public getWorker() {
-    for (let poolName in this.workers) {
-      let used = this.availability[poolName];
-      if (!used) {
-        this.availability[poolName] = true;
-        let worker = this.workers[poolName];
-        return worker;
-      }
-    }
-  }
-
-  public freeWorker(name : number) {
-    this.availability[name] = false;
-  }
-}
-
-
-var MemoryDataStore = slack.MemoryDataStore;
-var RtmClient = slack.RtmClient;
-var token = process.env.SLACK_API_TOKEN || '';
-var rtm = new RtmClient(token, {
+const MemoryDataStore = slack.MemoryDataStore;
+const RtmClient = slack.RtmClient;
+const token = process.env.SLACK_API_TOKEN || '';
+const rtm = new RtmClient(token, {
   // logLevel: 'debug',
   dataStore: new MemoryDataStore(),
 });
 
-var CLIENT_EVENTS = slack.CLIENT_EVENTS;
-var RTM_EVENTS = slack.RTM_EVENTS;
-var RTM_CLIENT_EVENTS = slack.CLIENT_EVENTS.RTM;
-
+const CLIENT_EVENTS = slack.CLIENT_EVENTS;
+const RTM_EVENTS = slack.RTM_EVENTS;
+const RTM_CLIENT_EVENTS = slack.CLIENT_EVENTS.RTM;
 
 class DeployBot {
 
@@ -99,13 +45,27 @@ class DeployBot {
     this.rtm.on(RTM_CLIENT_EVENTS.RTM_CONNECTION_OPENED, function () {});
 
     this.workerPool = new WorkerPool(config.pool);
-    this.workerPool.addListener('finished', this.handleTaskFinished.bind(this));
+    this.workerPool.addListener('finished', this.handleWorkerTaskFinished.bind(this));
+    this.workerPool.addListener('progress', this.handleWorkerProgress.bind(this));
+    this.workerPool.addListener('error', this.handleWorkerError.bind(this));
     this.workerPool.publish({ "type": "config", "config": config });
   }
 
-  handleTaskFinished(message) {
-    console.log("handleTaskFinished", message);
-    this.workerPool.freeWorker(message.name);
+  handleWorkerError(e) {
+    if (e.currentTask.fromMessage && e.currentTask.fromMessage.channel) {
+      this.rtm.sendMessage(e.message, e.currentTask.fromMessage.channel);
+      this.rtm.sendMessage("```\n" + JSON.stringify(e.error, null, "  ") + "\n```", e.currentTask.fromMessage.channel);
+    }
+  }
+
+  handleWorkerProgress(e) {
+    if (e.currentTask.fromMessage && e.currentTask.fromMessage.channel) {
+      this.rtm.sendMessage(e.message, e.currentTask.fromMessage.channel);
+    }
+  }
+
+  handleWorkerTaskFinished(e) {
+    this.workerPool.freeWorker(e.name);
   }
 
   handleMessage(message) {
@@ -120,21 +80,34 @@ class DeployBot {
     const parseDeployStatement = new RegExp('');
     const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
     const matches = message.text.match(parseMentionUserId);
-    if (matches) {
-      console.log("matches ID: ", matches);
-      const objectId = matches[1];
-      if (objectId == this.startData.self.id) {
-        let sentence = message.text.replace(parseMentionUserId, '');
-        let s = new DeployStatement;
-        let info = s.parse(sentence);
 
-        let worker = this.workerPool.getWorker();
-        if (worker) {
-          this.rtm.sendMessage(`<@${message.user}>: ${JSON.stringify(info, null, "  ")}`, message.channel);
-          worker.send({ 'type': 'deploy', 'deploy' : info });
-        } else {
-          this.rtm.sendMessage(`<@${message.user}>: sorry, all workers are busy.`, message.channel);
-        }
+
+    if (!matches) {
+      return;
+    }
+    console.log("Request matches ID: ", matches);
+    const objectId = matches[1];
+
+    function replyFormat(userId, message) {
+      return `<@${userId}>: ${message}`;
+    }
+
+    if (objectId == this.startData.self.id) {
+      let sentence = message.text.replace(parseMentionUserId, '');
+
+      let s = new DeployStatement;
+      let task : DeployTask = s.parse(sentence);
+      task.fromMessage = message;
+
+      // debug the task structure
+      // this.rtm.sendMessage(JSON.stringify(task, null, "  "), message.channel);
+
+      this.rtm.sendMessage('Finding available workers from worker pool...', message.channel);
+      let worker = this.workerPool.getWorker();
+      if (worker) {
+        worker.send({ 'type': 'deploy', 'task' : task });
+      } else {
+        this.rtm.sendMessage( replyFormat(message.user, 'Sorry, all the workers are busy...'), message.channel);
       }
     }
 
@@ -175,9 +148,23 @@ class DeployBot {
 
 
 function prepareWorkingRepositoryPool(config) {
+  if (!config.source) {
+    throw new Error('config.source is undefined.');
+  }
+  var repo = config.source.repository;
+
   for (let poolName in config.pool) {
     let poolDirectory = config.pool[poolName];
-    console.log(poolName , " => ", poolDirectory);
+
+    if (fs.existsSync(poolDirectory)) {
+      console.log(`Repository ${poolDirectory} exists.`);
+      continue;
+    }
+
+
+    console.log(`Cloning ${poolName} => ${poolDirectory} ...`);
+    let output = child_process.execSync(`git clone ${repo} ${poolDirectory}`);
+    console.log(output);
   }
 }
 
