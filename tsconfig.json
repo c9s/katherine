@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "allowSyntheticDefaultImports": true,
+    "allowUnreachableCode": false,
+    "removeComments": false,
+    "module": "commonjs",
+    "sourceMap": true,
+    "allowJs": true,
+    "outDir": "lib"
+  },
+  "exclude": ["node_modules"],
+  "files": [
+    "typings/index.d.ts",
+    "bin/slack.ts",
+    "src/worker.ts",
+    "src/DeployStatement.ts",
+    "src/Pattern.ts",
+    "tests/DeployStatementTest.ts"
+  ]
+}
