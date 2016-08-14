@@ -5,57 +5,55 @@ import {EventEmitter} from 'events';
 
 export class WorkerPool extends EventEmitter {
 
+  protected redis;
+
   protected poolConfig : Object;
 
   protected workers : Object;
 
   protected availability : Object;
 
-  constructor(poolConfig) {
+  constructor(sub, poolConfig) {
     super();
+    this.redis = sub;
     this.poolConfig = poolConfig;
     this.availability = {};
     this.workers = {};
-    this.fork();
-  }
 
-  public onMessage(message) {
-    if (message['type'] === "finished") {
-      this.freeWorker(message['name']);
-    }
-    this.emit(message['type'] , message);
-  }
-
-  /**
-   * publish message to all workers.
-   */
-  public publish(message) {
-    _.each(this.workers, (worker) => {
-      worker.send(message);
+    this.redis.on('subscribe', (channel, message) => {
+      console.log(channel, message);
+      let payload = JSON.parse(message);
+      switch (payload) {
+        case "connect":
+          this.workers[ payload.name ] = true;
+          this.availability[ payload.name ] = true;
+          break;
+        case "start":
+          this.availability[ payload.name ] = false;
+          break;
+        case "idle":
+          this.availability[ payload.name ] = true;
+          break;
+      }
     });
   }
 
-  public fork() {
+  public start() {
     for (let poolName in this.poolConfig) {
       let poolDirectory = this.poolConfig[poolName];
       let worker = child_process.fork(__dirname + '/../src/Worker', [poolName, poolDirectory]);
-      worker.on('message', this.onMessage.bind(this));
       this.workers[poolName] = worker;
+      this.availability[poolName] = true;
     }
   }
 
   public getWorker() {
-    for (let poolName in this.workers) {
-      let used = this.availability[poolName];
-      if (!used) {
-        this.availability[poolName] = true;
-        let worker = this.workers[poolName];
-        return worker;
+    for (let workerId in this.workers) {
+      let available = this.availability[workerId];
+      if (available) {
+        this.availability[workerId] = false;
+        return workerId;
       }
     }
-  }
-
-  public freeWorker(name : number) {
-    this.availability[name] = false;
   }
 }

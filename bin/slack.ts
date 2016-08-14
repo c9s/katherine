@@ -1,17 +1,12 @@
 /// <reference path="../node_modules/typeloy/lib/src/index.d.ts" />
 
-var slack = require('@slack/client');
-var _ = require('underscore');
+const slack = require('@slack/client');
+const _ = require('underscore');
 import child_process = require('child_process');
 import {DeployAction, GitSync, GitRepo} from "typeloy";
 import {DeployStatement} from "../src/DeployStatement";
 import {DeployTask} from "../src/DeployTask";
 import {WorkerPool} from "../src/WorkerPool";
-
-/*
-const RedisSMQ = require("rsmq");
-const rsmq = new RedisSMQ( {host: "127.0.0.1", port: 6379, ns: "rsmq"} );
-*/
 
 const fs = require('fs');
 
@@ -23,9 +18,37 @@ const rtm = new RtmClient(token, {
   dataStore: new MemoryDataStore(),
 });
 
+const BROADCAST_CHANNEL = "jobs";
+const MASTER_CHANNEL = "master";
+
+const Redis = require("redis");
+const sub = Redis.createClient();
+const pub = Redis.createClient();
+
 const CLIENT_EVENTS = slack.CLIENT_EVENTS;
 const RTM_EVENTS = slack.RTM_EVENTS;
 const RTM_CLIENT_EVENTS = slack.CLIENT_EVENTS.RTM;
+
+function formatError(m) {
+  if (m instanceof Error) {
+    return m.message;
+  }
+  return m;
+}
+
+function formatPlainText(message : string) : string {
+  if (typeof message === "object") {
+    message = JSON.stringify(message);
+  }
+  return "```\n"
+   + message
+   + "\n```";
+}
+
+function formatReply(userId, message) : string {
+  return `<@${userId}>: ${message}`;
+}
+
 
 class DeployBot {
 
@@ -35,8 +58,11 @@ class DeployBot {
 
   protected workerPool : WorkerPool;
 
+  protected config;
+
   constructor(rtm, config) {
     this.rtm = rtm;
+    this.config = config;
     this.rtm.on(CLIENT_EVENTS.RTM.AUTHENTICATED, this.handleStartData.bind(this));
     this.rtm.on(RTM_EVENTS.MESSAGE, this.handleMessage.bind(this));
     this.rtm.on(RTM_EVENTS.CHANNEL_JOINED, this.handleChannelJoined.bind(this));
@@ -44,28 +70,36 @@ class DeployBot {
     // you need to wait for the client to fully connect before you can send messages
     this.rtm.on(RTM_CLIENT_EVENTS.RTM_CONNECTION_OPENED, function () {});
 
-    this.workerPool = new WorkerPool(config.pool);
-    this.workerPool.addListener('finished', this.handleWorkerTaskFinished.bind(this));
-    this.workerPool.addListener('progress', this.handleWorkerProgress.bind(this));
-    this.workerPool.addListener('error', this.handleWorkerError.bind(this));
-    this.workerPool.publish({ "type": "config", "config": config });
+    this.workerPool = new WorkerPool(sub, config.pool);
+
+    sub.on("message", this.handleMasterMessage.bind(this));
+    sub.on("subscribe", (channel, count) => {
+      console.log("redis.subscribe", channel, count);
+    });
+    sub.subscribe(MASTER_CHANNEL);
+
+    this.workerPool.start();
   }
 
-  handleWorkerError(e) {
-    if (e.currentTask.fromMessage && e.currentTask.fromMessage.channel) {
-      this.rtm.sendMessage(e.message, e.currentTask.fromMessage.channel);
-      this.rtm.sendMessage("```\n" + JSON.stringify(e.error, null, "  ") + "\n```", e.currentTask.fromMessage.channel);
+  handleMasterMessage(channel : string, message : string) {
+    console.log('handleMasterMessage', channel, message);
+    let payload = JSON.parse(message);
+    switch (payload.type) {
+      case "connect":
+        // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentTask.fromMessage.channel);
+        pub.publish(payload.name, JSON.stringify({ 'type': 'config', 'config': this.config }));
+        break;
+      case "error":
+      case "debug":
+        if (payload.currentTask && payload.currentTask.fromMessage && payload.currentTask.fromMessage.channel) {
+          this.rtm.sendMessage(formatPlainText(payload.message), payload.currentTask.fromMessage.channel);
+        }
+      case "progress":
+        if (payload.currentTask && payload.currentTask.fromMessage && payload.currentTask.fromMessage.channel) {
+          this.rtm.sendMessage(payload.message, payload.currentTask.fromMessage.channel);
+        }
+        break;
     }
-  }
-
-  handleWorkerProgress(e) {
-    if (e.currentTask.fromMessage && e.currentTask.fromMessage.channel) {
-      this.rtm.sendMessage(e.message, e.currentTask.fromMessage.channel);
-    }
-  }
-
-  handleWorkerTaskFinished(e) {
-    this.workerPool.freeWorker(e.name);
   }
 
   handleMessage(message) {
@@ -81,68 +115,35 @@ class DeployBot {
     const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
     const matches = message.text.match(parseMentionUserId);
 
-
     if (!matches) {
       return;
     }
     console.log("Request matches ID: ", matches);
     const objectId = matches[1];
 
-    function replyFormat(userId, message) {
-      return `<@${userId}>: ${message}`;
-    }
 
     if (objectId == this.startData.self.id) {
       let sentence = message.text.replace(parseMentionUserId, '');
-
       let s = new DeployStatement;
       let task : DeployTask = s.parse(sentence);
       task.fromMessage = message;
-
-      // debug the task structure
-      // this.rtm.sendMessage(JSON.stringify(task, null, "  "), message.channel);
-
-      this.rtm.sendMessage('Finding available workers from worker pool...', message.channel);
       let worker = this.workerPool.getWorker();
       if (worker) {
-        worker.send({ 'type': 'deploy', 'task' : task });
+        pub.publish(worker, JSON.stringify({ 'type': 'deploy', 'task' : task }));
       } else {
-        this.rtm.sendMessage( replyFormat(message.user, 'Sorry, all the workers are busy...'), message.channel);
+        this.rtm.sendMessage(formatReply(message.user, 'Sorry, all the workers are busy...'), message.channel);
       }
-    }
 
-    /*
-    { type: 'message',
-      channel: 'C0DG1BP5F',
-      user: 'U1SV0V03B',
-      text: '<@U1Z4ZGPC2>: test',
-      text: '<@U1Z4ZGPC2>: shaka from master branch to staging server.',
-      ts: '1470650550.000004',
-      team: 'T0BR6PCRY' } }
-    */
-    /*
-    // This will send the message 'this is a test message' to the channel identified by id 'C0CHZA86Q'
-    rtm.sendMessage('This is a test message', 'C0CHZA86Q', function messageSent() {
-      // optionally, you can supply a callback to execute once the message has been sent
-    });
-    */
+    }
   }
 
   handleChannelJoined(message) {
     console.log("CHANNEL_JOINED", message);
-    // rtm.sendMessage('This is a test message', 'C0CHZA86Q');
   }
 
   handleStartData(rtmStartData) {
     console.log(`Logged in as ${rtmStartData.self.name} of team ${rtmStartData.team.name}, but not yet connected to a channel`);
     this.startData = rtmStartData;
-    /*
-    self: { id: 'U1Z4ZGPC2',
-          name: 'mr.deploy',
-          prefs: [Object],
-          created: 1470642759,
-          manual_presence: 'active' },
-    */
   }
 }
 
@@ -151,27 +152,25 @@ function prepareWorkingRepositoryPool(config) {
   if (!config.source) {
     throw new Error('config.source is undefined.');
   }
-  var repo = config.source.repository;
-
-  for (let poolName in config.pool) {
-    let poolDirectory = config.pool[poolName];
-
-    if (fs.existsSync(poolDirectory)) {
-      console.log(`Repository ${poolDirectory} exists.`);
-      continue;
+  const repo = config.source.repository;
+  for (const poolName in config.pool) {
+    const poolDirectory = config.pool[poolName];
+    if (!fs.existsSync(poolDirectory)) {
+      console.log(`Cloning ${poolName} => ${poolDirectory} ...`);
+      child_process.execSync(`git clone ${repo} ${poolDirectory}`, { stdio: [0,1,2], encoding: 'utf8' } );
     }
-
-
-    console.log(`Cloning ${poolName} => ${poolDirectory} ...`);
-    let output = child_process.execSync(`git clone ${repo} ${poolDirectory}`);
-    console.log(output);
   }
 }
 
 
-var config = JSON.parse(fs.readFileSync('delivery.json'));
+const config = JSON.parse(fs.readFileSync('delivery.json'));
 console.log('===> preparing workingRepository pool');
 prepareWorkingRepositoryPool(config);
+
+if (fs.existsSync('typeloy.json')) {
+  const typeloyConfig = JSON.parse(fs.readFileSync('typeloy.json'));
+  config.deploy = typeloyConfig;
+}
 
 console.log("===> forking deploy workers");
 var bot = new DeployBot(rtm, config);

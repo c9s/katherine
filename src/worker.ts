@@ -1,10 +1,24 @@
+const Redis = require("redis");
 
 import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap} from "typeloy";
 import {DeployTask} from "./DeployTask";
-var _ = require('underscore');
 
-var path = require('path');
+const _ = require('underscore');
 
+const path = require('path');
+
+const sub = Redis.createClient();
+const pub = Redis.createClient();
+
+const BROADCAST_CHANNEL = "jobs";
+const MASTER_CHANNEL = "master";
+
+/**
+ * Right now we only implemented 2 commands:
+ *
+ * 1. config (update deploy config)
+ * 2. deploy (deploy task)
+ */
 class DeployWorker {
 
   protected name : string;
@@ -21,57 +35,66 @@ class DeployWorker {
     this.name = name;
     this.directory = directory;
     this.repo = new GitRepo(directory);
-
-
-    process.on("message", this.handleMessage.bind(this));
-    process.on("disconnect", this.handleDisconnect.bind(this));
+    sub.on("message", this.handleMessage.bind(this));
+    sub.subscribe(BROADCAST_CHANNEL);
+    sub.subscribe(this.name);
   }
 
-  public handleDisconnect() {
-    console.log("disconnected");
+  public start() {
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'connect', 'name' : this.name }));
   }
 
-  public handleMessage(message) {
-    switch (message.type) {
-      case 'config':
-        this.setConfig(message);
-        break;
-
-      case 'deploy':
-        this.deploy(message.task);
-        break;
-      default:
-        this.error("unknown command");
-        break;
+  public handleMessage(channel, message) {
+    console.log('handleMessage', channel, message);
+    const payload = JSON.parse(message);
+    if (channel === this.name) {
+      switch (payload.type) {
+        case 'config':
+          this.setConfig(payload.config);
+          break;
+        case 'deploy':
+          pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
+          this.deploy(payload.task);
+          break;
+      }
+    } else if (channel === BROADCAST_CHANNEL) {
+      switch (payload.type) {
+        case 'config':
+          this.setConfig(payload.config);
+          break;
+        default:
+          this.error("unknown command");
+          break;
+      }
     }
   }
 
   protected progress(message) {
-    process.send({ 'type': 'progress', 'message': message, 'currentTask': this.currentTask });
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'progress', 'message': message, 'currentTask': this.currentTask }));
   }
+
 
   protected error(err) {
     let message = err;
     if (err instanceof Error) {
       message = err.message;
     }
-    process.send({ 'type': 'error', 'message': message, 'error': err, 'currentTask': this.currentTask });
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'error', 'message': message, 'currentTask': this.currentTask }));
   }
 
-  protected setFinished() {
-    console.log("===> task finished..");
-    process.send({ 'type': 'finished', 'name': this.name, 'currentTask': this.currentTask });
+  protected reportIdle() {
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'idle', 'name' : this.name }));
   }
 
-  protected setConfig(message) {
-    console.log('config:', message.config);
-    this.config = message.config;
+  protected setConfig(config) {
+    this.config = config;
   }
 
   protected deploy(task : DeployTask) {
     const self = this;
     if (!this.config) {
-      process.send({ 'type': 'errored', 'message': 'config is not set.' });
+      console.log("config is empty");
+      // process.send({ 'type': 'errored', 'message': 'config is not set.' });
       return;
     }
     this.currentTask = task;
@@ -97,7 +120,6 @@ class DeployWorker {
         console.log(stderr);
         if (error) {
           self.error(error);
-          this.setFinished();
           return;
         }
         this.progress(`OK, the branch ${task.branch} is now updated.`);
@@ -113,7 +135,6 @@ class DeployWorker {
         console.log(stderr);
         if (error) {
           self.error(error);
-          this.setFinished();
           return;
         }
         return Promise.resolve();
@@ -128,7 +149,6 @@ class DeployWorker {
         console.log(stderr);
         if (error) {
           self.error(error);
-          this.setFinished();
           return;
         }
         return Promise.resolve();
@@ -142,7 +162,6 @@ class DeployWorker {
         console.log(stderr);
         if (error) {
           self.error(error);
-          this.setFinished();
           return;
         }
         return Promise.resolve();
@@ -161,23 +180,25 @@ class DeployWorker {
         console.log("deployConfig", deployConfig);
 
         this.progress(`Started building ${task.appName} on branch ${task.branch}`);
-        let action = new DeployAction(deployConfig, this.directory);
+        let action = new DeployAction(deployConfig);
         let deployment = Deployment.create(deployConfig, this.directory);
+        // XXX: fix this API later.
         return action.run(deployment, task.sites);
       })
       .then((mapResult : Array<SummaryMap>) => {
         console.log("After deploy", mapResult);
         this.progress(JSON.stringify(mapResult, null, "  "));
         this.progress("Deployed.");
+        this.reportIdle();
         // var errorCode = haveSummaryMapsErrors(mapResult) ? 1 : 0;
-        this.setFinished();
       })
       .catch((err) => {
         console.error(err);
         this.error(err);
-        this.setFinished();
+        this.reportIdle();
       });
   }
 }
 console.log("===> Starting worker: ", process.argv[2], process.argv[3]);
-let worker = new DeployWorker(process.argv[2], process.argv[3]);
+const worker = new DeployWorker(process.argv[2], process.argv[3]);
+worker.start();
