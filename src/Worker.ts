@@ -181,7 +181,8 @@ class DeployWorker {
 
         this.progress(`Started building ${task.appName} on branch ${task.branch}`);
         let action = new DeployAction(deployConfig);
-        let deployment = Deployment.create(deployConfig, deployConfig.app.directory);
+        let deployment = Deployment.create(deployConfig);
+
         return action.run(deployment, task.sites);
       })
       .then((mapResult : Array<SummaryMap>) => {
