@@ -1,0 +1,43 @@
+{
+  "name": "delivery",
+  "version": "0.0.99",
+  "description": "meteor deploybot",
+  "scripts": {
+    "test": "mocha lib/tests"
+  },
+  "dependencies": {
+    "@slack/client": "^3.5.3",
+    "archiver": "0.14.x",
+    "async": "^0.9.0",
+    "cjson": "0.3.x",
+    "colors": "0.6.x",
+    "commander": "^2.9.0",
+    "debug": "^2.2.0",
+    "es6-promise": "^3.2.1",
+    "fibers": "^1.0.13",
+    "node-slack": "0.0.7",
+    "nodemiral": "^1.1.1",
+    "request": "^2.74.0",
+    "rimraf": "^2.5.4",
+    "rsmq": "^0.7.1",
+    "rsmq-worker": "^0.5.0",
+    "simple-git": "^1.43.0",
+    "underscore": "^1.7.0",
+    "uuid": "^1.4.2",
+    "winston": "^2.2.0"
+  },
+  "bin": {
+    "typeloy": "./lib/bin/slack.js"
+  },
+  "author": "Yo-An Lin <yoanlin93@gmail.com>",
+  "files": [
+    "lib/"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^3.0.0",
+    "mocha-typescript": "^1.0.4",
+    "typescript-require": "^0.2.9-1"
+  }
+}
