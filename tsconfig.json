@@ -13,7 +13,7 @@
   "files": [
     "typings/index.d.ts",
     "bin/slack.ts",
-    "src/worker.ts",
+    "src/Worker.ts",
     "src/DeployStatement.ts",
     "src/Pattern.ts",
     "tests/DeployStatementTest.ts"
