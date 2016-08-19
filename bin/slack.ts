@@ -133,7 +133,6 @@ class DeployBot {
       } else {
         this.rtm.sendMessage(formatReply(message.user, 'Sorry, all the workers are busy...'), message.channel);
       }
-
     }
   }
 

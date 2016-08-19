@@ -101,7 +101,20 @@ class DeployWorker {
 
     console.log(`#${this.name}: received deploy`, task);
 
-    this.progress(`I am checking out branch ${task.branch} ...`);
+    this.progress(`OK, checking out branch ${task.branch} ...`);
+
+    const deleteLocalBranch = (branch) => {
+      if (branch === "master") {
+        return Promise.resolve();
+      }
+      return this.repo.deleteBranch(branch, { "force": true }).then( ({ error, stdout, stderr }) => {
+        this.progress(stdout);
+        if (error) {
+          this.error(error);
+        }
+        return Promise.resolve();
+      });
+    }
 
     const checkout = (branch) => {
       return this.repo.checkout(branch).then( ({ error, stdout, stderr }) => {
@@ -114,7 +127,7 @@ class DeployWorker {
     }
 
     const pull = (remote) => {
-      this.progress(`I am going to pull down the changes for branch ${task.branch}...`);
+      this.progress(`Going to pull down the changes for branch ${task.branch}...`);
       return this.repo.pull(remote).then( ({ error, stdout, stderr }) => {
         this.progress(stdout);
         console.log(stderr);
@@ -169,6 +182,8 @@ class DeployWorker {
     }
 
     resetHard()
+      .then(() => checkout('master'))
+      .then(() => deleteLocalBranch(task.branch))
       .then(() => checkout(task.branch))
       .then(() => pull('origin'))
       .then(() => submoduleUpdate())
@@ -181,9 +196,22 @@ class DeployWorker {
 
         this.progress(`Started building ${task.appName} on branch ${task.branch}`);
         let action = new DeployAction(deployConfig);
-        let deployment = Deployment.create(deployConfig);
 
-        return action.run(deployment, task.sites);
+        action.on('task.started', (taskId) => {
+          console.log('task.started', taskId);
+          this.progress(taskId);
+        });
+        action.on('task.success', (taskId) => {
+          console.log('task.success', taskId);
+          this.progress(':+1: ' + taskId);
+        });
+        action.on('task.failed', (taskId) => {
+          console.log('task.failed', taskId);
+          this.progress(':joy: ' + taskId);
+        });
+
+        let deployment = Deployment.create(deployConfig);
+        return action.run(deployment, task.sites, { clean: false, dryrun: false } as any);
       })
       .then((mapResult : Array<SummaryMap>) => {
         console.log("After deploy", mapResult);
