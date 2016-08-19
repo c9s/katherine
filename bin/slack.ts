@@ -91,6 +91,10 @@ class DeployBot {
         // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentTask.fromMessage.channel);
         pub.publish(payload.name, JSON.stringify({ 'type': 'config', 'config': this.config }));
         break;
+      case "idle":
+        this.workerPool.free(payload.name);
+        this.rtm.sendMessage(`${payload.name} is now idle.`, payload.currentTask.fromMessage.channel);
+        break;
       case "error":
       case "debug":
         if (payload.currentTask && payload.currentTask.fromMessage && payload.currentTask.fromMessage.channel) {

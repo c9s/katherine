@@ -26,6 +26,7 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
       _.each(failedItems, (failedItem : SummaryMapHistory) => {
         attachments.push({
           "pretext": `I failed to deploy on host ${host}.`,
+          "fallback": `I failed to deploy on host ${host}.`,
           "text": "```\n" + failedItem.error + "\n```",
           "color": "red",
           "mrkdwn_in": ["text", "pretext"]
@@ -34,6 +35,7 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
     } else {
       attachments.push({
         "text": `I succeed to deploy on host ${host}`,
+        "fallback": `I failed to deploy on host ${host}.`,
         "color": color,
         "mrkdwn_in": ["text", "pretext"]
       });
@@ -41,18 +43,6 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
   });
   return attachments;
 }
-
-function successMessage(msg) {
-  return {
-    "attachments": [{
-      "title": msg,
-      "color": "#36a64f",
-      "mrkdwn_in": ["text", "pretext"]
-    }]
-  };
-}
-
-
 
 /**
  * Right now we only implemented 2 commands:
@@ -124,7 +114,7 @@ class DeployWorker {
   }
 
   protected reportIdle() {
-    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'idle', 'name' : this.name }));
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'idle', 'name' : this.name, 'currentTask': this.currentTask }));
   }
 
   protected setConfig(config) {

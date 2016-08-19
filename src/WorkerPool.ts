@@ -47,6 +47,10 @@ export class WorkerPool extends EventEmitter {
     }
   }
 
+  public free(workerId) {
+    this.availability[workerId] = true;
+  }
+
   public getWorker() {
     for (let workerId in this.workers) {
       let available = this.availability[workerId];
