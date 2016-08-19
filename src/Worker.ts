@@ -1,6 +1,6 @@
 const Redis = require("redis");
 
-import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap} from "typeloy";
+import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {DeployTask} from "./DeployTask";
 
 const _ = require('underscore');
@@ -12,6 +12,47 @@ const pub = Redis.createClient();
 
 const BROADCAST_CHANNEL = "jobs";
 const MASTER_CHANNEL = "master";
+
+
+function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
+  let attachments = [];
+  _.each(summaryMap, (summaryMapResult : SummaryMapResult, host : string) => {
+    let err = summaryMapResult.error;
+    let color = err ? "red" : "#36a64f";
+    let message = null;
+
+    if (err) {
+      let failedItems = _.filter(summaryMapResult.history, (historyItem: SummaryMapHistory) => historyItem.error);
+      _.each(failedItems, (failedItem : SummaryMapHistory) => {
+        attachments.push({
+          "pretext": `I failed to deploy on host ${host}.`,
+          "text": "```\n" + failedItem.error + "\n```",
+          "color": "red",
+          "mrkdwn_in": ["text", "pretext"]
+        });
+      });
+    } else {
+      attachments.push({
+        "text": `I succeed to deploy on host ${host}`,
+        "color": color,
+        "mrkdwn_in": ["text", "pretext"]
+      });
+    }
+  });
+  return attachments;
+}
+
+function successMessage(msg) {
+  return {
+    "attachments": [{
+      "title": msg,
+      "color": "#36a64f",
+      "mrkdwn_in": ["text", "pretext"]
+    }]
+  };
+}
+
+
 
 /**
  * Right now we only implemented 2 commands:
@@ -199,11 +240,23 @@ class DeployWorker {
 
         action.on('task.started', (taskId) => {
           console.log('task.started', taskId);
-          this.progress(taskId);
+          this.progress({
+            "attachments": [{
+              "text": "Started " + taskId,
+              "color": "#ccc",
+              "mrkdwn_in": ["text", "pretext"]
+            }]
+          });
         });
         action.on('task.success', (taskId) => {
           console.log('task.success', taskId);
-          this.progress(':+1: ' + taskId);
+          this.progress({
+            "attachments": [{
+              "text": taskId,
+              "color": "#36a64f",
+              "mrkdwn_in": ["text", "pretext"]
+            }]
+          });
         });
         action.on('task.failed', (taskId) => {
           console.log('task.failed', taskId);
@@ -213,12 +266,11 @@ class DeployWorker {
         let deployment = Deployment.create(deployConfig);
         return action.run(deployment, task.sites, { clean: false, dryrun: false } as any);
       })
-      .then((mapResult : Array<SummaryMap>) => {
-        console.log("After deploy", mapResult);
-        this.progress(JSON.stringify(mapResult, null, "  "));
-        this.progress("Deployed.");
+      .then((mapResult : SummaryMap) => {
+        // let errorCode = hasSummaryMapErrors(mapResult) ? 1 : 0;
+        // this.progress(JSON.stringify(mapResult, null, "  "));
+        this.progress(createAttachmentsFromSummaryMap(mapResult));
         this.reportIdle();
-        // var errorCode = haveSummaryMapsErrors(mapResult) ? 1 : 0;
       })
       .catch((err) => {
         console.error(err);

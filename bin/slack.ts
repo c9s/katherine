@@ -18,6 +18,8 @@ const rtm = new RtmClient(token, {
   dataStore: new MemoryDataStore(),
 });
 
+const slackWeb = new slack.WebClient(token);
+
 const BROADCAST_CHANNEL = "jobs";
 const MASTER_CHANNEL = "master";
 
@@ -82,8 +84,8 @@ class DeployBot {
   }
 
   handleMasterMessage(channel : string, message : string) {
-    console.log('handleMasterMessage', channel, message);
     let payload = JSON.parse(message);
+    console.log('handleMasterMessage', channel, JSON.stringify(payload.message, null, "  "));
     switch (payload.type) {
       case "connect":
         // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentTask.fromMessage.channel);
@@ -96,7 +98,17 @@ class DeployBot {
         }
       case "progress":
         if (payload.currentTask && payload.currentTask.fromMessage && payload.currentTask.fromMessage.channel) {
-          this.rtm.sendMessage(payload.message, payload.currentTask.fromMessage.channel);
+          if (typeof payload.message === "object") {
+            let msg = _.extend(payload.message, {
+              'channel': payload.currentTask.fromMessage.channel,
+              "asuser": true
+            });
+            slackWeb.chat.postMessage(payload.currentTask.fromMessage.channel, "", _.extend(payload.message, {
+              "as_user": true
+            }));
+          } else {
+            this.rtm.sendMessage(payload.message, payload.currentTask.fromMessage.channel);
+          }
         }
         break;
     }
