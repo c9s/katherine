@@ -201,8 +201,7 @@ class DeployWorker {
     const resetHard = () => {
       this.progress(`Resetting changes...`);
       return this.repo.reset({ 'hard': true }).then(({ error, stdout, stderr }) => {
-        this.progress(stdout);
-        console.log(stderr);
+        this.progress(createAttachmentsFromStdout("Repository is now cleaned.", stdout));
         if (error) {
           self.error(error);
           return;
@@ -214,7 +213,7 @@ class DeployWorker {
     const submoduleUpdate = () => {
       this.progress(`Updating submodules...`);
       return this.repo.submoduleUpdate({ 'init': true, 'recursive': true, 'force': true }).then(({ error, stdout, stderr }) => {
-        this.progress(stdout);
+        this.progress(createAttachmentsFromStdout("Submodule updated.", stdout));
         console.log(stderr);
         if (error) {
           self.error(error);
