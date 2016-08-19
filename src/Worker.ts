@@ -253,7 +253,7 @@ class DeployWorker {
           console.log('task.success', taskId);
           this.progress({
             "attachments": [{
-              "text": taskId,
+              "text": "Succeed " + taskId,
               "color": "#36a64f",
               "mrkdwn_in": ["text", "pretext"]
             }]
