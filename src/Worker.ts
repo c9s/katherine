@@ -19,7 +19,7 @@ function createAttachmentsFromStdout(title : string, stdout : string) {
     'attachments': [{
       "pretext": title,
       "fallback": title,
-      "text": "```\n" + stdout + "\n```",
+      "text": "```\n" + stdout.trim() + "\n```",
       "color": "#aaa",
       "mrkdwn_in": ["text", "pretext"]
     }]
@@ -39,7 +39,7 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
         attachments.push({
           "pretext": `I failed to deploy on host ${host}.`,
           "fallback": `I failed to deploy on host ${host}.`,
-          "text": "```\n" + failedItem.error + "\n```",
+          "text": "```\n" + failedItem.error.trim() + "\n```",
           "color": "red",
           "mrkdwn_in": ["text", "pretext"]
         });
