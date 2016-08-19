@@ -85,7 +85,7 @@ class DeployBot {
 
   handleMasterMessage(channel : string, message : string) {
     let payload = JSON.parse(message);
-    console.log('handleMasterMessage', channel, JSON.stringify(payload.message, null, "  "));
+    console.log('handleMasterMessage', channel, JSON.stringify(payload, null, "  "));
     switch (payload.type) {
       case "connect":
         // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentTask.fromMessage.channel);

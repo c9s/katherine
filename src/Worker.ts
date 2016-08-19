@@ -41,7 +41,7 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
       });
     }
   });
-  return attachments;
+  return { 'attachments': attachments };
 }
 
 /**
