@@ -14,6 +14,18 @@ const BROADCAST_CHANNEL = "jobs";
 const MASTER_CHANNEL = "master";
 
 
+function createAttachmentsFromStdout(title : string, stdout : string) {
+  return {
+    'attachments': [{
+      "pretext": title,
+      "fallback": title,
+      "text": "```\n" + stdout + "\n```",
+      "color": "#aaa",
+      "mrkdwn_in": ["text", "pretext"]
+    }]
+  };
+}
+
 function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
   let attachments = [];
   _.each(summaryMap, (summaryMapResult : SummaryMapResult, host : string) => {
@@ -139,7 +151,7 @@ class DeployWorker {
         return Promise.resolve();
       }
       return this.repo.deleteBranch(branch, { "force": true }).then( ({ error, stdout, stderr }) => {
-        this.progress(stdout);
+        this.progress(createAttachmentsFromStdout(`Removed local branch ${branch}`, stdout));
         if (error) {
           this.error(error);
         }
@@ -149,7 +161,7 @@ class DeployWorker {
 
     const checkout = (branch) => {
       return this.repo.checkout(branch).then( ({ error, stdout, stderr }) => {
-        this.progress(stdout);
+        this.progress(createAttachmentsFromStdout(`Checking out branch ${task.branch}.`, stdout));
         if (error) {
           this.error(error);
         }
@@ -160,13 +172,13 @@ class DeployWorker {
     const pull = (remote) => {
       this.progress(`Going to pull down the changes for branch ${task.branch}...`);
       return this.repo.pull(remote).then( ({ error, stdout, stderr }) => {
-        this.progress(stdout);
+        console.log(stdout);
         console.log(stderr);
         if (error) {
           self.error(error);
           return;
         }
-        this.progress(`OK, the branch ${task.branch} is now updated.`);
+        this.progress(createAttachmentsFromStdout(`OK, the branch ${task.branch} is now updated.`, stdout));
         return Promise.resolve();
       });
     }
