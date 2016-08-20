@@ -168,6 +168,11 @@ class DeployWorker {
       });
     }
 
+    const fetch = (remote) => {
+      this.progress(`Fetching tags...`);
+      return this.repo.fetch(remote, { tags: true });
+    }
+
     const pull = (remote) => {
       this.progress(`Going to pull down the changes for branch ${task.branch}...`);
       return this.repo.pull(remote).then( ({ error, stdout, stderr }) => {
@@ -223,6 +228,7 @@ class DeployWorker {
     }
 
     resetHard()
+      .then(() => fetch('origin'))
       .then(() => checkout('master'))
       .then(() => deleteLocalBranch(task.branch))
       .then(() => checkout(task.branch))
