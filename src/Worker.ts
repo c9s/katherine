@@ -270,7 +270,12 @@ class DeployWorker {
         });
 
         let deployment = Deployment.create(deployConfig);
-        return action.run(deployment, task.sites, { clean: false, dryrun: false } as any);
+        try {
+          return action.run(deployment, task.sites, { clean: false, dryrun: false } as any);
+        } catch (err) {
+          this.error(err);
+          return Promise.reject(err);
+        }
       })
       .then((mapResult : SummaryMap) => {
         // let errorCode = hasSummaryMapErrors(mapResult) ? 1 : 0;
