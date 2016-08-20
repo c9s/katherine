@@ -62,12 +62,16 @@ class DeployBot {
 
   protected config;
 
+  protected messageQueue : Promise<any>;
+
   constructor(rtm, config) {
     this.rtm = rtm;
     this.config = config;
     this.rtm.on(CLIENT_EVENTS.RTM.AUTHENTICATED, this.handleStartData.bind(this));
     this.rtm.on(RTM_EVENTS.MESSAGE, this.handleMessage.bind(this));
     this.rtm.on(RTM_EVENTS.CHANNEL_JOINED, this.handleChannelJoined.bind(this));
+
+    this.messageQueue = Promise.resolve({});
 
     // you need to wait for the client to fully connect before you can send messages
     this.rtm.on(RTM_CLIENT_EVENTS.RTM_CONNECTION_OPENED, function () {});
@@ -98,20 +102,32 @@ class DeployBot {
       case "error":
       case "debug":
         if (payload.currentTask && payload.currentTask.fromMessage && payload.currentTask.fromMessage.channel) {
-          this.rtm.sendMessage(formatPlainText(payload.message), payload.currentTask.fromMessage.channel);
+          this.messageQueue.then(() => {
+            return new Promise(resolve => {
+              this.rtm.sendMessage(formatPlainText(payload.message), payload.currentTask.fromMessage.channel, resolve);
+            });
+          });
         }
       case "progress":
         if (payload.currentTask && payload.currentTask.fromMessage && payload.currentTask.fromMessage.channel) {
           if (typeof payload.message === "object") {
-            let msg = _.extend(payload.message, {
-              'channel': payload.currentTask.fromMessage.channel,
-              "asuser": true
+            this.messageQueue.then(() => {
+              return new Promise(resolve => {
+                let msg = _.extend(payload.message, {
+                  'channel': payload.currentTask.fromMessage.channel,
+                  "asuser": true
+                });
+                slackWeb.chat.postMessage(payload.currentTask.fromMessage.channel, "", _.extend(payload.message, {
+                  "as_user": true
+                }), resolve );
+              });
             });
-            slackWeb.chat.postMessage(payload.currentTask.fromMessage.channel, "", _.extend(payload.message, {
-              "as_user": true
-            }));
           } else {
-            this.rtm.sendMessage(payload.message, payload.currentTask.fromMessage.channel);
+            this.messageQueue.then(() => {
+              return new Promise(resolve => {
+                this.rtm.sendMessage(payload.message, payload.currentTask.fromMessage.channel, resolve);
+              });
+            });
           }
         }
         break;
