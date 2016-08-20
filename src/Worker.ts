@@ -30,15 +30,14 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
   let attachments = [];
   _.each(summaryMap, (summaryMapResult : SummaryMapResult, host : string) => {
     let err = summaryMapResult.error;
-    let color = err ? "red" : "#36a64f";
     let message = null;
 
     if (err) {
       let failedItems = _.filter(summaryMapResult.history, (historyItem: SummaryMapHistory) => historyItem.error);
       _.each(failedItems, (failedItem : SummaryMapHistory) => {
         attachments.push({
-          "pretext": `I failed to deploy on host ${host}.`,
-          "fallback": `I failed to deploy on host ${host}.`,
+          "pretext": `The deployment on host ${host} has failed.`,
+          "fallback": `The deployment on host ${host} has failed.`,
           "text": "```\n" + failedItem.error.trim() + "\n```",
           "color": "red",
           "mrkdwn_in": ["text", "pretext"]
@@ -46,9 +45,9 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
       });
     } else {
       attachments.push({
-        "text": `I succeed to deploy on host ${host}`,
-        "fallback": `I failed to deploy on host ${host}.`,
-        "color": color,
+        "text": `The deployment on host ${host} has been successfully performed.`,
+        "fallback": `The deployment on host ${host} has been successfully performed.`,
+        "color": "#36a64f",
         "mrkdwn_in": ["text", "pretext"]
       });
     }
