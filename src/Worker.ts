@@ -83,10 +83,6 @@ class DeployWorker {
     sub.subscribe(BROADCAST_CHANNEL);
     sub.subscribe(this.name);
 
-    let deployConfig = <Config>_.extend({}, this.config.deploy);
-    deployConfig.app.directory = path.resolve(path.join(this.directory, deployConfig.app.directory));
-    this.deployConfig = ConfigParser.preprocess(deployConfig);
-    console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
   }
 
   public start() {
@@ -137,15 +133,24 @@ class DeployWorker {
 
   protected setConfig(config) {
     this.config = config;
+    let deployConfig = <Config>_.extend({}, this.config.deploy);
+    deployConfig.app.directory = path.resolve(path.join(this.directory, deployConfig.app.directory));
+    this.deployConfig = ConfigParser.preprocess(deployConfig);
+    console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
   }
 
   protected deploy(task : DeployTask) {
     const self = this;
     if (!this.config) {
-      console.log("config is empty");
+      console.log("this.config is empty");
       // process.send({ 'type': 'errored', 'message': 'config is not set.' });
       return;
     }
+
+    if (!this.deployConfig) {
+      this.error("this.deployConfig is undefined.");
+    }
+
     this.currentTask = task;
 
     console.log(`#${this.name}: received deploy`, task);
@@ -243,7 +248,6 @@ class DeployWorker {
       .then(() => submoduleUpdate())
       .then(() => {
 
-        this.progress(`Started building ${task.appName} on branch ${task.branch}`);
         let action = new DeployAction(this.deployConfig);
 
         action.on('task.started', (taskId) => {
@@ -273,6 +277,7 @@ class DeployWorker {
 
         let deployment = Deployment.create(this.deployConfig);
         try {
+          this.progress(`Started building ${task.appName} on branch ${task.branch}`);
           return action.run(deployment, task.sites, { clean: false, dryrun: false } as any);
         } catch (err) {
           this.error(err);
