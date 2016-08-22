@@ -89,7 +89,7 @@ class DeployBot {
 
   handleMasterMessage(channel : string, message : string) {
     let payload = JSON.parse(message);
-    console.log('handleMasterMessage', channel, JSON.stringify(payload, null, "  "));
+    // console.log('handleMasterMessage', channel, JSON.stringify(payload, null, "  "));
     switch (payload.type) {
       case "connect":
         // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentTask.fromMessage.channel);
@@ -97,7 +97,11 @@ class DeployBot {
         break;
       case "idle":
         this.workerPool.free(payload.name);
-        this.rtm.sendMessage(`${payload.name} is now idle.`, payload.currentTask.fromMessage.channel);
+        this.messageQueue.then(() => {
+          return new Promise(resolve => {
+            this.rtm.sendMessage(`${payload.name} is now idle.`, payload.currentTask.fromMessage.channel, resolve);
+          });
+        });
         break;
       case "error":
       case "debug":
