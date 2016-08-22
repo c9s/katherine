@@ -47,7 +47,7 @@ function formatPlainText(message : string) : string {
    + "\n```";
 }
 
-function formatReply(userId, message) : string {
+function formatReply(userId : string, message) : string {
   return `<@${userId}>: ${message}`;
 }
 

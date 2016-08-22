@@ -71,6 +71,8 @@ class DeployWorker {
 
   protected config : any;
 
+  protected deployConfig : any;
+
   protected currentTask : DeployTask;
 
   constructor(name : string, directory : string) {
@@ -80,6 +82,11 @@ class DeployWorker {
     sub.on("message", this.handleMessage.bind(this));
     sub.subscribe(BROADCAST_CHANNEL);
     sub.subscribe(this.name);
+
+    let deployConfig = <Config>_.extend({}, this.config.deploy);
+    deployConfig.app.directory = path.resolve(path.join(this.directory, deployConfig.app.directory));
+    this.deployConfig = ConfigParser.preprocess(deployConfig);
+    console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
   }
 
   public start() {
@@ -235,14 +242,9 @@ class DeployWorker {
       .then(() => pull('origin'))
       .then(() => submoduleUpdate())
       .then(() => {
-        this.progress(`Preparing config for depolyment...`);
-        let deployConfig = <Config>_.extend({}, this.config.deploy);
-        deployConfig.app.directory = path.resolve(path.join(this.directory, deployConfig.app.directory));
-        deployConfig = ConfigParser.preprocess(deployConfig);
-        console.log("deployConfig", deployConfig);
 
         this.progress(`Started building ${task.appName} on branch ${task.branch}`);
-        let action = new DeployAction(deployConfig);
+        let action = new DeployAction(this.deployConfig);
 
         action.on('task.started', (taskId) => {
           console.log('task.started', taskId);
@@ -269,7 +271,7 @@ class DeployWorker {
           this.progress(':joy: ' + taskId);
         });
 
-        let deployment = Deployment.create(deployConfig);
+        let deployment = Deployment.create(this.deployConfig);
         try {
           return action.run(deployment, task.sites, { clean: false, dryrun: false } as any);
         } catch (err) {
