@@ -141,11 +141,14 @@ class DeployBot {
   handleMessage(message) {
     let user = this.rtm.dataStore.getUserById(message.user);
     let channel = this.rtm.dataStore.getChannelGroupOrDMById(message.channel);
+
+    /*
     console.log(
       'User %s posted a message in %s channel',
       user.name,
       channel.name
     );
+    */
 
     const parseDeployStatement = new RegExp('');
     const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
