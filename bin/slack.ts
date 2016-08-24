@@ -197,6 +197,15 @@ function prepareWorkingRepositoryPool(config) {
       console.log(`Cloning ${poolName} => ${poolDirectory} ...`);
       child_process.execSync(`git clone ${repo} ${poolDirectory}`, { stdio: [0,1,2], encoding: 'utf8' } );
     }
+
+    console.log(`Checking out master...`);
+    child_process.execSync('git checkout master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
+
+    console.log(`Pull and rebase from remote origin to master`);
+    child_process.execSync('git pull --rebase origin master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
+
+    console.log(`Run meteor npm install`);
+    child_process.execSync('meteor npm install', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
   }
 }
 
