@@ -1,7 +1,7 @@
 const Redis = require("redis");
 
 import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
-import {DeployTask} from "./DeployTask";
+import {DeployRequest} from "./DeployRequest";
 
 const _ = require('underscore');
 
@@ -73,7 +73,7 @@ class DeployWorker {
 
   protected deployConfig : any;
 
-  protected currentTask : DeployTask;
+  protected currentRequest : DeployRequest;
 
   constructor(name : string, directory : string) {
     this.name = name;
@@ -115,7 +115,7 @@ class DeployWorker {
   }
 
   protected progress(message) {
-    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'progress', 'message': message, 'currentTask': this.currentTask }));
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'progress', 'message': message, 'currentRequest': this.currentRequest }));
   }
 
 
@@ -124,11 +124,11 @@ class DeployWorker {
     if (err instanceof Error) {
       message = err.message;
     }
-    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'error', 'message': message, 'currentTask': this.currentTask }));
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'error', 'message': message, 'currentRequest': this.currentRequest }));
   }
 
   protected reportIdle() {
-    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'idle', 'name' : this.name, 'currentTask': this.currentTask }));
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'idle', 'name' : this.name, 'currentRequest': this.currentRequest }));
   }
 
   protected setConfig(config) {
@@ -139,7 +139,7 @@ class DeployWorker {
     console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
   }
 
-  protected deploy(task : DeployTask) {
+  protected deploy(task : DeployRequest) {
     const self = this;
     if (!this.config) {
       console.log("this.config is empty");
@@ -151,7 +151,7 @@ class DeployWorker {
       this.error("this.deployConfig is undefined.");
     }
 
-    this.currentTask = task;
+    this.currentRequest = task;
 
     console.log(`#${this.name}: received deploy`, task);
 

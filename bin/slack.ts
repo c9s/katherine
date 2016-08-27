@@ -5,7 +5,6 @@ const _ = require('underscore');
 import child_process = require('child_process');
 import {DeployAction, GitSync, GitRepo} from "typeloy";
 import {DeployStatement} from "../src/DeployStatement";
-import {DeployTask} from "../src/DeployTask";
 import {WorkerPool} from "../src/WorkerPool";
 
 const fs = require('fs');
@@ -164,11 +163,11 @@ class DeployBot {
     if (objectId == this.startData.self.id) {
       let sentence = message.text.replace(parseMentionUserId, '');
       let s = new DeployStatement;
-      let task : DeployTask = s.parse(sentence);
-      task.fromMessage = message;
+      let request = s.parse(sentence);
+      request.fromMessage = message;
       let worker = this.workerPool.getWorker();
       if (worker) {
-        pub.publish(worker, JSON.stringify({ 'type': 'deploy', 'task' : task }));
+        pub.publish(worker, JSON.stringify({ 'type': 'deploy', 'request' : request }));
       } else {
         this.rtm.sendMessage(formatReply(message.user, 'Sorry, all the workers are busy...'), message.channel);
       }
