@@ -278,7 +278,7 @@ class DeployWorker {
         let deployment = Deployment.create(this.deployConfig);
         try {
           this.progress(`Started building ${task.appName} on branch ${task.branch}`);
-          return action.run(deployment, task.sites, { clean: false, dryrun: false } as any);
+          return action.run(deployment, task.sites, { dryrun: false } as any);
         } catch (err) {
           this.error(err);
           return Promise.reject(err);
