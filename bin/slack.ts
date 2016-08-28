@@ -91,36 +91,36 @@ class DeployBot {
     // console.log('handleMasterMessage', channel, JSON.stringify(payload, null, "  "));
     switch (payload.type) {
       case "connect":
-        // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentTask.fromMessage.channel);
+        // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentRequest.fromMessage.channel);
         pub.publish(payload.name, JSON.stringify({ 'type': 'config', 'config': this.config }));
         break;
       case "idle":
         this.workerPool.free(payload.name);
         this.messageQueue.then(() => {
           return new Promise(resolve => {
-            this.rtm.sendMessage(`${payload.name} is now idle.`, payload.currentTask.fromMessage.channel, resolve);
+            this.rtm.sendMessage(`${payload.name} is now idle.`, payload.currentRequest.fromMessage.channel, resolve);
           });
         });
         break;
       case "error":
       case "debug":
-        if (payload.currentTask && payload.currentTask.fromMessage && payload.currentTask.fromMessage.channel) {
+        if (payload.currentRequest && payload.currentRequest.fromMessage && payload.currentRequest.fromMessage.channel) {
           this.messageQueue.then(() => {
             return new Promise(resolve => {
-              this.rtm.sendMessage(formatPlainText(payload.message), payload.currentTask.fromMessage.channel, resolve);
+              this.rtm.sendMessage(formatPlainText(payload.message), payload.currentRequest.fromMessage.channel, resolve);
             });
           });
         }
       case "progress":
-        if (payload.currentTask && payload.currentTask.fromMessage && payload.currentTask.fromMessage.channel) {
+        if (payload.currentRequest && payload.currentRequest.fromMessage && payload.currentRequest.fromMessage.channel) {
           if (typeof payload.message === "object") {
             this.messageQueue.then(() => {
               return new Promise(resolve => {
                 let msg = _.extend(payload.message, {
-                  'channel': payload.currentTask.fromMessage.channel,
+                  'channel': payload.currentRequest.fromMessage.channel,
                   "asuser": true
                 });
-                slackWeb.chat.postMessage(payload.currentTask.fromMessage.channel, "", _.extend(payload.message, {
+                slackWeb.chat.postMessage(payload.currentRequest.fromMessage.channel, "", _.extend(payload.message, {
                   "as_user": true
                 }), resolve );
               });
@@ -128,7 +128,7 @@ class DeployBot {
           } else {
             this.messageQueue.then(() => {
               return new Promise(resolve => {
-                this.rtm.sendMessage(payload.message, payload.currentTask.fromMessage.channel, resolve);
+                this.rtm.sendMessage(payload.message, payload.currentRequest.fromMessage.channel, resolve);
               });
             });
           }
