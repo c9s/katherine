@@ -202,9 +202,6 @@ function prepareWorkingRepositoryPool(config) {
 
     console.log(`Pull and rebase from remote origin to master`);
     child_process.execSync('git pull --rebase origin master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
-
-    console.log(`Run meteor npm install`);
-    child_process.execSync('meteor npm install', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
   }
 }
 
