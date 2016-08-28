@@ -59,7 +59,7 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
  * Right now we only implemented 2 commands:
  *
  * 1. config (update deploy config)
- * 2. deploy (deploy task)
+ * 2. deploy (deploy request)
  */
 class DeployWorker {
 
@@ -99,7 +99,7 @@ class DeployWorker {
           break;
         case 'deploy':
           pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
-          this.deploy(payload.task);
+          this.deploy(payload.request);
           break;
       }
     } else if (channel === BROADCAST_CHANNEL) {
@@ -139,7 +139,7 @@ class DeployWorker {
     console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
   }
 
-  protected deploy(task : DeployRequest) {
+  protected deploy(request : DeployRequest) {
     const self = this;
     if (!this.config) {
       console.log("this.config is empty");
@@ -151,11 +151,11 @@ class DeployWorker {
       this.error("this.deployConfig is undefined.");
     }
 
-    this.currentRequest = task;
+    this.currentRequest = request;
 
-    console.log(`#${this.name}: received deploy`, task);
+    console.log(`#${this.name}: received deploy`, request);
 
-    this.progress(`OK, checking out branch ${task.branch} ...`);
+    this.progress(`OK, checking out branch ${request.branch} ...`);
 
     const deleteLocalBranch = (branch) => {
       if (branch === "master") {
@@ -172,7 +172,7 @@ class DeployWorker {
 
     const checkout = (branch) => {
       return this.repo.checkout(branch).then( ({ error, stdout, stderr }) => {
-        this.progress(createAttachmentsFromStdout(`Checking out branch ${task.branch}.`, stdout));
+        this.progress(createAttachmentsFromStdout(`Checking out branch ${request.branch}.`, stdout));
         if (error) {
           this.error(error);
         }
@@ -186,7 +186,7 @@ class DeployWorker {
     }
 
     const pull = (remote) => {
-      this.progress(`Going to pull down the changes for branch ${task.branch}...`);
+      this.progress(`Going to pull down the changes for branch ${request.branch}...`);
       return this.repo.pull(remote).then( ({ error, stdout, stderr }) => {
         console.log(stdout);
         console.log(stderr);
@@ -194,7 +194,7 @@ class DeployWorker {
           self.error(error);
           return;
         }
-        this.progress(createAttachmentsFromStdout(`OK, the branch ${task.branch} is now updated.`, stdout));
+        this.progress(createAttachmentsFromStdout(`OK, the branch ${request.branch} is now updated.`, stdout));
         return Promise.resolve();
       });
     }
@@ -242,8 +242,8 @@ class DeployWorker {
     resetHard()
       .then(() => fetch('origin'))
       .then(() => checkout('master'))
-      .then(() => deleteLocalBranch(task.branch))
-      .then(() => checkout(task.branch))
+      .then(() => deleteLocalBranch(request.branch))
+      .then(() => checkout(request.branch))
       .then(() => pull('origin'))
       .then(() => submoduleUpdate())
       .then(() => {
@@ -277,8 +277,8 @@ class DeployWorker {
 
         let deployment = Deployment.create(this.deployConfig);
         try {
-          this.progress(`Started building ${task.appName} on branch ${task.branch}`);
-          return action.run(deployment, task.sites, { dryrun: false } as any);
+          this.progress(`Started building ${request.appName} on branch ${request.branch}`);
+          return action.run(deployment, request.sites, { dryrun: false } as any);
         } catch (err) {
           this.error(err);
           return Promise.reject(err);
