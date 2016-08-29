@@ -82,7 +82,6 @@ class DeployWorker {
     sub.on("message", this.handleMessage.bind(this));
     sub.subscribe(BROADCAST_CHANNEL);
     sub.subscribe(this.name);
-
   }
 
   public start() {
@@ -128,7 +127,12 @@ class DeployWorker {
   }
 
   protected reportIdle() {
+    pub.hset("workers", this.name, "idle");
     pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'idle', 'name' : this.name, 'currentRequest': this.currentRequest }));
+  }
+
+  protected reportBusy() {
+    pub.hset("workers", this.name, "busy");
   }
 
   protected setConfig(config) {
@@ -199,21 +203,6 @@ class DeployWorker {
       });
     }
 
-    /*
-    const cleanForce = () => {
-      this.progress(`Force clean...`);
-      return this.repo.clean({ 'force': true, 'removeUntrackedDirectory': true }).then(({ error, stdout, stderr }) => {
-        this.progress(stdout);
-        console.log(stderr);
-        if (error) {
-          self.error(error);
-          return;
-        }
-        return Promise.resolve();
-      });
-    }
-    */
-
     const resetHard = () => {
       this.progress(`Resetting changes...`);
       return this.repo.reset({ 'hard': true }).then(({ error, stdout, stderr }) => {
@@ -251,7 +240,6 @@ class DeployWorker {
         let action = new DeployAction(this.deployConfig);
 
         action.on('task.started', (taskId) => {
-          console.log('task.started', taskId);
           this.progress({
             "attachments": [{
               "text": "Started " + taskId,
@@ -261,7 +249,6 @@ class DeployWorker {
           });
         });
         action.on('task.success', (taskId) => {
-          console.log('task.success', taskId);
           this.progress({
             "attachments": [{
               "text": "Succeed " + taskId,
@@ -271,7 +258,6 @@ class DeployWorker {
           });
         });
         action.on('task.failed', (taskId) => {
-          console.log('task.failed', taskId);
           this.progress(':joy: ' + taskId);
         });
 
