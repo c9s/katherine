@@ -11,13 +11,10 @@ export class WorkerPool extends EventEmitter {
 
   protected workers : Object;
 
-  protected availability : Object;
-
   constructor(sub, poolConfig) {
     super();
     this.redis = sub;
     this.poolConfig = poolConfig;
-    this.availability = {};
     this.workers = {};
 
     this.redis.on('subscribe', (channel, message) => {
@@ -25,39 +22,30 @@ export class WorkerPool extends EventEmitter {
       let payload = JSON.parse(message);
       switch (payload) {
         case "connect":
-          this.workers[ payload.name ] = true;
-          this.availability[ payload.name ] = true;
-          break;
-        case "start":
-          this.availability[ payload.name ] = false;
-          break;
-        case "idle":
-          this.availability[ payload.name ] = true;
+          this.workers[payload.name] = true;
           break;
       }
     });
   }
 
-  public start() {
+  public fork() {
     for (let poolName in this.poolConfig) {
       let poolDirectory = this.poolConfig[poolName];
       let worker = child_process.fork(__dirname + '/../src/Worker', [poolName, poolDirectory]);
       this.workers[poolName] = worker;
-      this.availability[poolName] = true;
     }
   }
 
-  public free(workerId) {
-    this.availability[workerId] = true;
-  }
-
-  public getWorker() {
-    for (let workerId in this.workers) {
-      let available = this.availability[workerId];
-      if (available) {
-        this.availability[workerId] = false;
-        return workerId;
-      }
-    }
+  public findIdleWorker() : Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      this.redis.hgetall("workers", (err, obj) => {
+        for (let key in obj) {
+          if (obj[key] == "idle") {
+            return resolve(key);
+          }
+        }
+        reject();
+      });
+    });
   }
 }

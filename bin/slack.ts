@@ -12,11 +12,12 @@ const fs = require('fs');
 const MemoryDataStore = slack.MemoryDataStore;
 const RtmClient = slack.RtmClient;
 const token = process.env.SLACK_API_TOKEN || '';
+
+
 const rtm = new RtmClient(token, {
-  // logLevel: 'debug',
+  logLevel: 'debug',
   dataStore: new MemoryDataStore(),
 });
-
 const slackWeb = new slack.WebClient(token);
 
 const BROADCAST_CHANNEL = "jobs";
@@ -73,7 +74,11 @@ class DeployBot {
     this.messageQueue = Promise.resolve({});
 
     // you need to wait for the client to fully connect before you can send messages
-    this.rtm.on(RTM_CLIENT_EVENTS.RTM_CONNECTION_OPENED, function () {});
+    this.rtm.on(RTM_CLIENT_EVENTS.RTM_CONNECTION_OPENED, () => {
+      let user = rtm.dataStore.getUserById(rtm.activeUserId);
+      let team = rtm.dataStore.getTeamById(rtm.activeTeamId);
+      console.log('Connected to ' + team.name + ' as ' + user.name);
+    });
 
     this.workerPool = new WorkerPool(sub, config.pool);
 
@@ -82,8 +87,7 @@ class DeployBot {
       console.log("redis.subscribe", channel, count);
     });
     sub.subscribe(MASTER_CHANNEL);
-
-    this.workerPool.start();
+    this.workerPool.fork();
   }
 
   handleMasterMessage(channel : string, message : string) {
@@ -95,7 +99,6 @@ class DeployBot {
         pub.publish(payload.name, JSON.stringify({ 'type': 'config', 'config': this.config }));
         break;
       case "idle":
-        this.workerPool.free(payload.name);
         this.messageQueue.then(() => {
           return new Promise(resolve => {
             this.rtm.sendMessage(`${payload.name} is now idle.`, payload.currentRequest.fromMessage.channel, resolve);
@@ -141,13 +144,13 @@ class DeployBot {
     let user = this.rtm.dataStore.getUserById(message.user);
     let channel = this.rtm.dataStore.getChannelGroupOrDMById(message.channel);
 
-    /*
-    console.log(
-      'User %s posted a message in %s channel',
-      user.name,
-      channel.name
-    );
-    */
+    if (user && channel) {
+      console.log(
+        'User %s posted a message in %s channel',
+        user.name,
+        channel.name
+      );
+    }
 
     const parseDeployStatement = new RegExp('');
     const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
@@ -165,12 +168,11 @@ class DeployBot {
       let s = new DeployStatement;
       let request = s.parse(sentence);
       request.fromMessage = message;
-      let worker = this.workerPool.getWorker();
-      if (worker) {
-        pub.publish(worker, JSON.stringify({ 'type': 'deploy', 'request' : request }));
-      } else {
+      this.workerPool.findIdleWorker().then((workerId) => {
+        pub.publish(workerId, JSON.stringify({ 'type': 'deploy', 'request' : request }));
+      }).catch(() => {
         this.rtm.sendMessage(formatReply(message.user, 'Sorry, all the workers are busy...'), message.channel);
-      }
+      });
     }
   }
 

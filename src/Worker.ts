@@ -242,7 +242,8 @@ class DeployWorker {
         action.on('task.started', (taskId) => {
           this.progress({
             "attachments": [{
-              "text": "Started " + taskId,
+              "text": `Started ${taskId}`,
+              "fallback": `Started ${taskId}`,
               "color": "#ccc",
               "mrkdwn_in": ["text", "pretext"]
             }]
@@ -251,7 +252,8 @@ class DeployWorker {
         action.on('task.success', (taskId) => {
           this.progress({
             "attachments": [{
-              "text": "Succeed " + taskId,
+              "fallback": `Succeed ${taskId}`,
+              "text": `Succeed ${taskId}`,
               "color": "#36a64f",
               "mrkdwn_in": ["text", "pretext"]
             }]
