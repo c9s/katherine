@@ -170,7 +170,7 @@ class DeployWorker {
   }
 
   protected debug(message) {
-    if (this.currentRequest && this.currentRequest.debug) {
+    if (this.currentRequest && (this.currentRequest.debug || this.currentRequest.verbose)) {
       pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'progress', 'message': message, 'currentRequest': this.currentRequest }));
     }
   }
