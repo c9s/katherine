@@ -50,10 +50,48 @@ function formatReply(userId : string, message) : string {
   return `<@${userId}>: ${message}`;
 }
 
-
-class DeployBot {
+abstract class SlackBot {
 
   protected rtm;
+
+  protected messageQueue : Promise<any>;
+
+  constructor(rtm) {
+    this.rtm = rtm;
+    this.messageQueue = Promise.resolve({});
+  }
+
+  sendMessage(message, channel) {
+    if (typeof message === "object") {
+      this.sendWebAPIMessage(message, channel);
+    } else {
+      this.sendRtmMessage(message, channel);
+    }
+  }
+
+  sendWebAPIMessage(message, channel) {
+    this.messageQueue.then(() => {
+      return new Promise(resolve => {
+        let msg = _.extend(message, {
+          "channel": channel,
+          "as_user": true
+        });
+        slackWeb.chat.postMessage(channel, "", msg, resolve);
+      });
+    });
+  }
+
+  sendRtmMessage(message, channel) {
+    this.messageQueue.then(() => {
+      return new Promise(resolve => {
+        this.rtm.sendMessage(message, channel, resolve);
+      });
+    });
+  }
+
+}
+
+class DeployBot extends SlackBot {
 
   protected startData;
 
@@ -61,16 +99,12 @@ class DeployBot {
 
   protected config;
 
-  protected messageQueue : Promise<any>;
-
   constructor(rtm, config) {
-    this.rtm = rtm;
+    super(rtm);
     this.config = config;
     this.rtm.on(CLIENT_EVENTS.RTM.AUTHENTICATED, this.handleStartData.bind(this));
     this.rtm.on(RTM_EVENTS.MESSAGE, this.handleMessage.bind(this));
     this.rtm.on(RTM_EVENTS.CHANNEL_JOINED, this.handleChannelJoined.bind(this));
-
-    this.messageQueue = Promise.resolve({});
 
     // you need to wait for the client to fully connect before you can send messages
     this.rtm.on(RTM_CLIENT_EVENTS.RTM_CONNECTION_OPENED, () => {
@@ -89,6 +123,7 @@ class DeployBot {
     this.workerPool.fork();
   }
 
+
   handleMasterMessage(channel : string, message : string) {
     let payload = JSON.parse(message);
     // console.log('handleMasterMessage', channel, JSON.stringify(payload, null, "  "));
@@ -98,42 +133,18 @@ class DeployBot {
         pub.publish(payload.name, JSON.stringify({ 'type': 'config', 'config': this.config }));
         break;
       case "ready":
-        this.messageQueue.then(() => {
-          return new Promise(resolve => {
-            this.rtm.sendMessage(`${payload.name} is ready.`, payload.currentRequest.fromMessage.channel, resolve);
-          });
-        });
+        if (payload.currentRequest && payload.currentRequest.fromMessage && payload.currentRequest.fromMessage.channel) {
+          this.sendMessage(`${payload.name} is ready.`, payload.currentRequest.fromMessage.channel);
+        }
         break;
       case "error":
       case "debug":
         if (payload.currentRequest && payload.currentRequest.fromMessage && payload.currentRequest.fromMessage.channel) {
-          this.messageQueue.then(() => {
-            return new Promise(resolve => {
-              this.rtm.sendMessage(formatPlainText(payload.message), payload.currentRequest.fromMessage.channel, resolve);
-            });
-          });
+          this.sendMessage(formatPlainText(payload.message), payload.currentRequest.fromMessage.channel);
         }
       case "progress":
         if (payload.currentRequest && payload.currentRequest.fromMessage && payload.currentRequest.fromMessage.channel) {
-          if (typeof payload.message === "object") {
-            this.messageQueue.then(() => {
-              return new Promise(resolve => {
-                let msg = _.extend(payload.message, {
-                  'channel': payload.currentRequest.fromMessage.channel,
-                  "asuser": true
-                });
-                slackWeb.chat.postMessage(payload.currentRequest.fromMessage.channel, "", _.extend(payload.message, {
-                  "as_user": true
-                }), resolve );
-              });
-            });
-          } else {
-            this.messageQueue.then(() => {
-              return new Promise(resolve => {
-                this.rtm.sendMessage(payload.message, payload.currentRequest.fromMessage.channel, resolve);
-              });
-            });
-          }
+          this.sendMessage(payload.message, payload.currentRequest.fromMessage.channel);
         }
         break;
     }
@@ -200,9 +211,10 @@ function prepareWorkingRepositoryPool(config) {
       child_process.execSync(`git clone ${repo} ${poolDirectory}`, { stdio: [0,1,2], encoding: 'utf8' } );
     }
 
-    /*
     console.log(`Checking out master...`);
     child_process.execSync('git checkout master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
+    child_process.execSync('git reset --hard', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
+    /*
     console.log(`Pull and rebase from remote origin to master`);
     child_process.execSync('git pull --rebase origin master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
     */

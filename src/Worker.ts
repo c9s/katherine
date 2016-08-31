@@ -27,7 +27,40 @@ function createAttachmentsFromStdout(title : string, stdout : string) {
   };
 }
 
-function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
+function createAttachmentsFromSummaryMap(request, deployment, summaryMap : SummaryMap) {
+
+  let fields = [];
+
+  if (deployment.tag) {
+    fields.push({ 
+      'title': 'Source',
+      'value': deployment.tag,
+      'short': true
+    })
+  }
+  if (request.sites) {
+    fields.push({ 
+      'title': 'Sites',
+      'value': request.sites.join(', '),
+      'short': true
+    })
+  }
+  if (request.branch) {
+    fields.push({ 
+      'title': 'Branch',
+      'value': request.branch,
+      'short': true
+    })
+  }
+
+  if (request.fromMessage && request.fromMessage.user) {
+    fields.push({ 
+      'title': 'By User',
+      'value': `<@${request.fromMessage.user}>`,
+      'short': true
+    })
+  }
+
   let attachments = [];
   _.each(summaryMap, (summaryMapResult : SummaryMapResult, host : string) => {
     let err = summaryMapResult.error;
@@ -41,7 +74,8 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
           "fallback": `The deployment on host ${host} has failed.`,
           "text": "```\n" + failedItem.error.trim() + "\n```",
           "color": "red",
-          "mrkdwn_in": ["text", "pretext"]
+          "fields": fields,
+          "mrkdwn_in": ["text", "pretext", "fields"]
         });
       });
     } else {
@@ -49,7 +83,8 @@ function createAttachmentsFromSummaryMap(summaryMap : SummaryMap) {
         "text": `The deployment on host ${host} has been successfully performed.`,
         "fallback": `The deployment on host ${host} has been successfully performed.`,
         "color": "#36a64f",
-        "mrkdwn_in": ["text", "pretext"]
+        "fields": fields,
+        "mrkdwn_in": ["text", "pretext", "fields"]
       });
     }
   });
@@ -234,6 +269,7 @@ class DeployWorker {
       });
     }
 
+    let deployment = null;
     resetHard()
       .then(() => fetch('origin'))
       .then(() => checkout('master'))
@@ -242,9 +278,7 @@ class DeployWorker {
       .then(() => pull('origin'))
       .then(() => submoduleUpdate())
       .then(() => {
-
         let action = new DeployAction(this.deployConfig);
-
         action.on('task.started', (taskId) => {
           this.progress({
             "attachments": [{
@@ -269,10 +303,10 @@ class DeployWorker {
           this.progress(':joy: ' + taskId);
         });
 
-        let deployment = Deployment.create(this.deployConfig);
+        deployment = Deployment.create(this.deployConfig);
         try {
           this.progress(`Started building ${request.appName} on branch ${request.branch}`);
-          return action.run(deployment, request.sites, { dryrun: false } as any);
+          return action.run(deployment, request.sites, { dryrun: false, clean: false } as any);
         } catch (err) {
           this.error(err);
           return Promise.reject(err);
@@ -281,7 +315,7 @@ class DeployWorker {
       .then((mapResult : SummaryMap) => {
         // let errorCode = hasSummaryMapErrors(mapResult) ? 1 : 0;
         // this.progress(JSON.stringify(mapResult, null, "  "));
-        this.progress(createAttachmentsFromSummaryMap(mapResult));
+        this.progress(createAttachmentsFromSummaryMap(request, deployment, mapResult));
         this.reportReady();
       })
       .catch((err) => {
