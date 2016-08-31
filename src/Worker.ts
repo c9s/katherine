@@ -1,19 +1,17 @@
+const fs = require('fs');
+const path = require('path');
 const Redis = require("redis");
+const _ = require('underscore');
 
 import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {DeployRequest} from "./DeployRequest";
 
-const _ = require('underscore');
 
-const path = require('path');
+const config = JSON.parse(fs.readFileSync('delivery.json'));
+const sub = Redis.createClient(config.redis);
+const pub = Redis.createClient(config.redis);
 
-const sub = Redis.createClient();
-const pub = Redis.createClient();
-
-const BROADCAST_CHANNEL = "jobs";
-const MASTER_CHANNEL = "master";
-
-const STATUS_HASH = "worker-status";
+import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
 
 function createAttachmentsFromStdout(title : string, stdout : string) {
   return {
@@ -183,6 +181,10 @@ class DeployWorker {
     }
   }
 
+  protected complete(message) {
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'progress', 'message': message, 'currentRequest': this.currentRequest }));
+  }
+
   protected error(err) {
     let message = err;
     if (err instanceof Error) {
@@ -196,12 +198,12 @@ class DeployWorker {
   }
 
   protected reportReady() {
-    pub.hset("workers", this.name, "ready");
+    pub.hset(WORKER_STATUS, this.name, "ready");
     pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'ready', 'name' : this.name, 'currentRequest': this.currentRequest }));
   }
 
   protected reportBusy() {
-    pub.hset("workers", this.name, "busy");
+    pub.hset(WORKER_STATUS, this.name, "busy");
   }
 
   protected setConfig(config) {
@@ -341,7 +343,7 @@ class DeployWorker {
         }
       })
       .then((mapResult : SummaryMap) => {
-        this.progress(createAttachmentsFromSummaryMap(request, deployment, mapResult));
+        this.complete(createAttachmentsFromSummaryMap(request, deployment, mapResult));
         this.reportReady();
       })
       .catch((err) => {

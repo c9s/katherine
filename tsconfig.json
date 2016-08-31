@@ -16,6 +16,7 @@
     "src/Worker.ts",
     "src/DeployStatement.ts",
     "src/Pattern.ts",
+    "src/WebService.ts",
     "tests/DeployStatementTest.ts"
   ]
 }

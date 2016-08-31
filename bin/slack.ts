@@ -1,5 +1,6 @@
 /// <reference path="../node_modules/typeloy/lib/src/index.d.ts" />
 
+const fs = require('fs');
 const slack = require('@slack/client');
 const _ = require('underscore');
 import child_process = require('child_process');
@@ -7,11 +8,14 @@ import {DeployAction, GitSync, GitRepo} from "typeloy";
 import {DeployStatement} from "../src/DeployStatement";
 import {WorkerPool} from "../src/WorkerPool";
 
-const fs = require('fs');
 
 const MemoryDataStore = slack.MemoryDataStore;
 const RtmClient = slack.RtmClient;
 const token = process.env.SLACK_API_TOKEN || '';
+
+
+
+const Redis = require("redis");
 
 const rtm = new RtmClient(token, {
   // logLevel: 'debug',
@@ -22,9 +26,9 @@ const slackWeb = new slack.WebClient(token);
 const BROADCAST_CHANNEL = "jobs";
 const MASTER_CHANNEL = "master";
 
-const Redis = require("redis");
-const sub = Redis.createClient();
-const pub = Redis.createClient();
+const config = JSON.parse(fs.readFileSync('delivery.json'));
+const sub = Redis.createClient(config.redis);
+const pub = Redis.createClient(config.redis);
 
 const CLIENT_EVENTS = slack.CLIENT_EVENTS;
 const RTM_EVENTS = slack.RTM_EVENTS;
@@ -99,9 +103,11 @@ class DeployBot extends SlackBot {
 
   protected config;
 
-  constructor(rtm, config) {
+  constructor(rtm, workerPool : WorkerPool, config) {
     super(rtm);
     this.config = config;
+    this.workerPool = workerPool;
+
     this.rtm.on(CLIENT_EVENTS.RTM.AUTHENTICATED, this.handleStartData.bind(this));
     this.rtm.on(RTM_EVENTS.MESSAGE, this.handleMessage.bind(this));
     this.rtm.on(RTM_EVENTS.CHANNEL_JOINED, this.handleChannelJoined.bind(this));
@@ -113,14 +119,13 @@ class DeployBot extends SlackBot {
       console.log('Connected to ' + team.name + ' as ' + user.name);
     });
 
-    this.workerPool = new WorkerPool(sub, config.pool);
 
     sub.on("message", this.handleMasterMessage.bind(this));
     sub.on("subscribe", (channel, count) => {
       console.log("redis.subscribe", channel, count);
     });
     sub.subscribe(MASTER_CHANNEL);
-    this.workerPool.fork();
+
   }
 
 
@@ -134,7 +139,7 @@ class DeployBot extends SlackBot {
         break;
       case "ready":
         if (payload.currentRequest && payload.currentRequest.fromMessage && payload.currentRequest.fromMessage.channel) {
-          this.sendMessage(`${payload.name} is ready.`, payload.currentRequest.fromMessage.channel);
+          this.sendMessage(`The deploy worker ${payload.name} is ready.`, payload.currentRequest.fromMessage.channel);
         }
         break;
       case "error":
@@ -182,7 +187,7 @@ class DeployBot extends SlackBot {
         pub.publish(workerId, JSON.stringify({ 'type': 'deploy', 'request' : request }));
       }).catch((e) => {
         console.log(e);
-        this.rtm.sendMessage(`Error: e`, message.channel);
+        this.rtm.sendMessage(`Error: ${e}`, message.channel);
         // this.rtm.sendMessage(formatReply(message.user, 'Sorry, all the workers are busy...'), message.channel);
       });
     }
@@ -222,8 +227,7 @@ function prepareWorkingRepositoryPool(config) {
 }
 
 
-const config = JSON.parse(fs.readFileSync('delivery.json'));
-console.log('===> preparing workingRepository pool');
+console.log('===> Preparing workingRepository pool');
 prepareWorkingRepositoryPool(config);
 
 if (fs.existsSync('typeloy.json')) {
@@ -231,6 +235,10 @@ if (fs.existsSync('typeloy.json')) {
   config.deploy = typeloyConfig;
 }
 
-console.log("===> forking deploy workers");
-var bot = new DeployBot(rtm, config);
+const workerPool = new WorkerPool(config);
+const bot = new DeployBot(rtm, workerPool, config);
+console.log("===> Forking deploy workers ...");
+workerPool.fork();
+
+console.log("===> Starting RTM ...");
 rtm.start();

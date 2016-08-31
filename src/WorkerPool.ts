@@ -4,37 +4,28 @@ import child_process = require('child_process');
 import {EventEmitter} from 'events';
 const Redis = require("redis");
 
+import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
+
 export class WorkerPool extends EventEmitter {
 
   protected redis;
 
-  protected sub;
-
   protected poolConfig : Object;
 
-  protected workers : Object;
+  protected workerProcesses : Object;
 
-  constructor(sub, poolConfig) {
+  constructor(config) {
     super();
-    this.sub = sub; // redis for sub
-    this.redis = Redis.createClient();
-    this.poolConfig = poolConfig;
-    this.workers = {};
-    this.sub.on('subscribe', (channel, message) => {
-      let payload = JSON.parse(message);
-      switch (payload) {
-        case "connect":
-          this.workers[payload.name] = true;
-          break;
-      }
-    });
+    this.redis = Redis.createClient(config.redis);
+    this.poolConfig = config.pool;
+    this.workerProcesses = {};
   }
 
   public fork() {
     for (let poolName in this.poolConfig) {
       let poolDirectory = this.poolConfig[poolName];
       let worker = child_process.fork(__dirname + '/../src/Worker', [poolName, poolDirectory]);
-      this.workers[poolName] = worker;
+      this.workerProcesses[poolName] = worker;
     }
   }
 

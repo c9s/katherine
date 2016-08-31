@@ -1,18 +1,5 @@
-interface SlackMessage {
 
-  channel : string;
-
-  user : string;
-
-  text : string;
-
-  type : string;
-
-  ts : string;
-
-  tream : string;
-
-}
+import {SlackMessage} from "./SlackMessage";
 
 export interface DeployRequest {
 

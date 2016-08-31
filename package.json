@@ -12,7 +12,7 @@
     "cjson": "0.3.x",
     "colors": "0.6.x",
     "commander": "^2.9.0",
-    "connect": "^3.4.1",
+    "connect": "^2.8.8",
     "debug": "^2.2.0",
     "es6-promise": "^3.2.1",
     "fibers": "^1.0.13",
@@ -24,6 +24,7 @@
     "rsmq-worker": "^0.5.0",
     "simple-git": "^1.43.0",
     "underscore": "^1.7.0",
+    "urlrouter": "^0.5.4",
     "uuid": "^1.4.2",
     "winston": "^2.2.0"
   },
