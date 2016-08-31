@@ -13,9 +13,8 @@ const MemoryDataStore = slack.MemoryDataStore;
 const RtmClient = slack.RtmClient;
 const token = process.env.SLACK_API_TOKEN || '';
 
-
 const rtm = new RtmClient(token, {
-  logLevel: 'debug',
+  // logLevel: 'debug',
   dataStore: new MemoryDataStore(),
 });
 const slackWeb = new slack.WebClient(token);
@@ -170,8 +169,10 @@ class DeployBot {
       request.fromMessage = message;
       this.workerPool.findIdleWorker().then((workerId) => {
         pub.publish(workerId, JSON.stringify({ 'type': 'deploy', 'request' : request }));
-      }).catch(() => {
-        this.rtm.sendMessage(formatReply(message.user, 'Sorry, all the workers are busy...'), message.channel);
+      }).catch((e) => {
+        console.log(e);
+        this.rtm.sendMessage(`Error: e`, message.channel);
+        // this.rtm.sendMessage(formatReply(message.user, 'Sorry, all the workers are busy...'), message.channel);
       });
     }
   }
@@ -199,11 +200,12 @@ function prepareWorkingRepositoryPool(config) {
       child_process.execSync(`git clone ${repo} ${poolDirectory}`, { stdio: [0,1,2], encoding: 'utf8' } );
     }
 
+    /*
     console.log(`Checking out master...`);
     child_process.execSync('git checkout master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
-
     console.log(`Pull and rebase from remote origin to master`);
     child_process.execSync('git pull --rebase origin master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
+    */
   }
 }
 

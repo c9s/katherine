@@ -2,10 +2,13 @@
 var _ = require('underscore');
 import child_process = require('child_process');
 import {EventEmitter} from 'events';
+const Redis = require("redis");
 
 export class WorkerPool extends EventEmitter {
 
   protected redis;
+
+  protected sub;
 
   protected poolConfig : Object;
 
@@ -13,10 +16,11 @@ export class WorkerPool extends EventEmitter {
 
   constructor(sub, poolConfig) {
     super();
-    this.redis = sub;
+    this.sub = sub; // redis for sub
+    this.redis = Redis.createClient();
     this.poolConfig = poolConfig;
     this.workers = {};
-    this.redis.on('subscribe', (channel, message) => {
+    this.sub.on('subscribe', (channel, message) => {
       let payload = JSON.parse(message);
       switch (payload) {
         case "connect":
@@ -37,6 +41,7 @@ export class WorkerPool extends EventEmitter {
   public findIdleWorker() : Promise<string> {
     return new Promise<string>((resolve, reject) => {
       this.redis.hgetall("workers", (err, obj) => {
+        console.log(err, obj);
         for (let key in obj) {
           if (obj[key] == "ready") {
             return resolve(key);
