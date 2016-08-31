@@ -72,7 +72,7 @@ Promise.all([ getChannelIds(), getUserIds() ]).then((result) => {
         fromMessage: {
           user: null,
           // user: userIds['c9s'],
-          channel: channelIds['bot-tests']
+          channel: channelIds['deployment_process']
         } as SlackMessage
       } as DeployRequest;
 
