@@ -15,8 +15,14 @@ interface SlackMessage {
 }
 
 export interface DeployRequest {
+
   branch : string;
+
   appName : string;
+
   sites : Array<string>;
+
   fromMessage?: SlackMessage;
+
+  verbose?: boolean;
 }

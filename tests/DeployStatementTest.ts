@@ -17,6 +17,7 @@ describe('DeploySentence', () => {
       expect(ret).is.deep.equal({
         appName: "shaka",
         branch: "master",
+        logging: undefined,
         sites: ["dev"]
       });
     });
@@ -27,6 +28,7 @@ describe('DeploySentence', () => {
       expect(ret).is.deep.equal({
         appName: "shaka",
         branch: "carlos/tasks",
+        logging: undefined,
         sites: ["lite-on"]
       });
     });
@@ -37,8 +39,23 @@ describe('DeploySentence', () => {
       expect(ret).is.deep.equal({
         appName: "shaka",
         branch: "carlos/tasks",
+        logging: undefined,
         sites: ["staging", "dev"]
       });
     });
+
+    it('should parse logging level', () => {
+      let s = new DeployStatement;
+      let ret = s.parse('please deploy shaka from carlos/tasks branch to staging,dev verbosely');
+      expect(ret).is.deep.equal({
+        appName: "shaka",
+        branch: "carlos/tasks",
+        sites: ["staging", "dev"],
+        verbose: true
+      });
+    });
+
+
+
   });
 });
