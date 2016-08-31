@@ -8,8 +8,6 @@ const path = require('path');
 const Redis = require("redis");
 const _ = require('underscore');
 
-
-
 import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {DeployRequest} from "./DeployRequest";
 import {WorkerPool} from "./WorkerPool";
@@ -57,7 +55,14 @@ Promise.all([ getChannelIds(), getUserIds() ]).then((result) => {
     app.get('/deploy/:app/:branch/:sites', function (req, res, next) {
       let u = url.parse(req.url, true);
 
-      // u.query.silent
+      if (config.web) {
+        if (!_.contains(config.web.accessTokens, u.query.access_token)) {
+          res.end('Permission denied.');
+          return;
+        }
+      }
+      // if (u.query.access_token 
+
       // console.log(req);
       let request = { 
         appName: req.params.app,
