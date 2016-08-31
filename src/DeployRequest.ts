@@ -25,4 +25,8 @@ export interface DeployRequest {
   fromMessage?: SlackMessage;
 
   verbose?: boolean;
+
+  silent?: boolean;
+
+  debug?: boolean;
 }

@@ -11,7 +11,7 @@ export class DeployStatement {
       "appName": { "pattern": "[a-zA-Z-]+" },
       "branch": { "pattern": "[a-zA-Z-_/]+" },
       "sites": { "pattern": "[a-zA-Z-_,]+" },
-      "logging": { "pattern": "verbosely" }
+      "logging": { "pattern": "verbosely|silently|debugly" }
     }));
 
     for (let i in patterns) {
@@ -21,9 +21,19 @@ export class DeployStatement {
         if (typeof matches.sites === "string") {
           matches.sites = matches.sites.split(/,/);
         }
-        if (matches.logging == "verbosely") {
-          delete matches.logging;
-          matches.verbose = true;
+        switch (matches.logging) {
+          case "verbosely":
+            delete matches.logging;
+            matches.verbose = true;
+            break;
+          case "silently":
+            delete matches.logging;
+            matches.silent = true;
+            break;
+          case "debugly":
+            delete matches.logging;
+            matches.debug = true;
+            break;
         }
         return matches;
       }
