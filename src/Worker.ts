@@ -13,6 +13,7 @@ const pub = Redis.createClient();
 const BROADCAST_CHANNEL = "jobs";
 const MASTER_CHANNEL = "master";
 
+const STATUS_HASH = "worker-status";
 
 function createAttachmentsFromStdout(title : string, stdout : string) {
   return {
@@ -85,7 +86,7 @@ class DeployWorker {
   }
 
   public start() {
-    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'connect', 'name' : this.name }));
+    this.reportConnected();
   }
 
   public handleMessage(channel, message) {
@@ -95,6 +96,7 @@ class DeployWorker {
       switch (payload.type) {
         case 'config':
           this.setConfig(payload.config);
+          this.reportReady();
           break;
         case 'deploy':
           pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
@@ -126,9 +128,13 @@ class DeployWorker {
     pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'error', 'message': message, 'currentRequest': this.currentRequest }));
   }
 
-  protected reportIdle() {
-    pub.hset("workers", this.name, "idle");
-    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'idle', 'name' : this.name, 'currentRequest': this.currentRequest }));
+  protected reportConnected() {
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'connect', 'name' : this.name }));
+  }
+
+  protected reportReady() {
+    pub.hset("workers", this.name, "ready");
+    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'ready', 'name' : this.name, 'currentRequest': this.currentRequest }));
   }
 
   protected reportBusy() {
@@ -276,12 +282,12 @@ class DeployWorker {
         // let errorCode = hasSummaryMapErrors(mapResult) ? 1 : 0;
         // this.progress(JSON.stringify(mapResult, null, "  "));
         this.progress(createAttachmentsFromSummaryMap(mapResult));
-        this.reportIdle();
+        this.reportReady();
       })
       .catch((err) => {
         console.error(err);
         this.error(err);
-        this.reportIdle();
+        this.reportReady();
       });
   }
 }

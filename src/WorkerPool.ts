@@ -16,9 +16,7 @@ export class WorkerPool extends EventEmitter {
     this.redis = sub;
     this.poolConfig = poolConfig;
     this.workers = {};
-
     this.redis.on('subscribe', (channel, message) => {
-      console.log(channel, message);
       let payload = JSON.parse(message);
       switch (payload) {
         case "connect":
@@ -40,7 +38,7 @@ export class WorkerPool extends EventEmitter {
     return new Promise<string>((resolve, reject) => {
       this.redis.hgetall("workers", (err, obj) => {
         for (let key in obj) {
-          if (obj[key] == "idle") {
+          if (obj[key] == "ready") {
             return resolve(key);
           }
         }

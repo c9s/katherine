@@ -98,10 +98,10 @@ class DeployBot {
         // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentRequest.fromMessage.channel);
         pub.publish(payload.name, JSON.stringify({ 'type': 'config', 'config': this.config }));
         break;
-      case "idle":
+      case "ready":
         this.messageQueue.then(() => {
           return new Promise(resolve => {
-            this.rtm.sendMessage(`${payload.name} is now idle.`, payload.currentRequest.fromMessage.channel, resolve);
+            this.rtm.sendMessage(`${payload.name} is ready.`, payload.currentRequest.fromMessage.channel, resolve);
           });
         });
         break;
@@ -162,7 +162,7 @@ class DeployBot {
     console.log("Request matches ID: ", matches);
     const objectId = matches[1];
 
-
+    // talking to me...
     if (objectId == this.startData.self.id) {
       let sentence = message.text.replace(parseMentionUserId, '');
       let s = new DeployStatement;
