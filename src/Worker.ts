@@ -46,15 +46,17 @@ function createAttachmentsFromSummaryMap(request, deployment, summaryMap : Summa
       'short': true
     })
     fields.push({ 
-      'title': 'Author',
-      'value': deployment.revInfo.commits[0].author.name,
-      'short': true
-    })
-    fields.push({ 
       'title': 'Committed At',
       'value': deployment.revInfo.commits[0].committedAt,
       'short': true
     })
+    if (deployment.revInfo.commits[0].author) {
+      fields.push({ 
+        'title': 'Author',
+        'value': deployment.revInfo.commits[0].author.name,
+        'short': true
+      })
+    }
   }
 
   if (request.sites) {
