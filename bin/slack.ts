@@ -240,5 +240,9 @@ const bot = new DeployBot(rtm, workerPool, config);
 console.log("===> Forking deploy workers ...");
 workerPool.fork();
 
+if (config.web) {
+  const httpServer = child_process.fork(__dirname + '/../src/WebService', []);
+}
+
 console.log("===> Starting RTM ...");
 rtm.start();
