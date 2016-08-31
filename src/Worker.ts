@@ -169,10 +169,17 @@ class DeployWorker {
     }
   }
 
-  protected progress(message) {
-    pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'progress', 'message': message, 'currentRequest': this.currentRequest }));
+  protected debug(message) {
+    if (this.currentRequest && this.currentRequest.debug) {
+      pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'progress', 'message': message, 'currentRequest': this.currentRequest }));
+    }
   }
 
+  protected progress(message) {
+    if (this.currentRequest && !this.currentRequest.silent) {
+      pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'progress', 'message': message, 'currentRequest': this.currentRequest }));
+    }
+  }
 
   protected error(err) {
     let message = err;
@@ -226,7 +233,7 @@ class DeployWorker {
         return Promise.resolve();
       }
       return this.repo.deleteBranch(branch, { "force": true }).then( ({ error, stdout, stderr }) => {
-        this.progress(createAttachmentsFromStdout(`Removed local branch ${branch}`, stdout));
+        this.debug(createAttachmentsFromStdout(`Removed local branch ${branch}`, stdout));
         if (error) {
           this.error(error);
         }
@@ -236,7 +243,7 @@ class DeployWorker {
 
     const checkout = (branch) => {
       return this.repo.checkout(branch).then( ({ error, stdout, stderr }) => {
-        this.progress(createAttachmentsFromStdout(`Checking out branch ${request.branch}.`, stdout));
+        this.debug(createAttachmentsFromStdout(`Checking out branch ${request.branch}.`, stdout));
         if (error) {
           this.error(error);
         }
@@ -258,7 +265,7 @@ class DeployWorker {
           self.error(error);
           return;
         }
-        this.progress(createAttachmentsFromStdout(`OK, the branch ${request.branch} is now updated.`, stdout));
+        this.debug(createAttachmentsFromStdout(`OK, the branch ${request.branch} is now updated.`, stdout));
         return Promise.resolve();
       });
     }
@@ -266,7 +273,7 @@ class DeployWorker {
     const resetHard = () => {
       this.progress(`Resetting changes...`);
       return this.repo.reset({ 'hard': true }).then(({ error, stdout, stderr }) => {
-        this.progress(createAttachmentsFromStdout("Repository is now cleaned.", stdout));
+        this.debug(createAttachmentsFromStdout("Repository is now cleaned.", stdout));
         if (error) {
           self.error(error);
           return;
@@ -278,7 +285,7 @@ class DeployWorker {
     const submoduleUpdate = () => {
       this.progress(`Updating submodules...`);
       return this.repo.submoduleUpdate({ 'init': true, 'recursive': true, 'force': true }).then(({ error, stdout, stderr }) => {
-        this.progress(createAttachmentsFromStdout("Submodule updated.", stdout));
+        this.debug(createAttachmentsFromStdout("Submodule updated.", stdout));
         console.log(stderr);
         if (error) {
           self.error(error);
@@ -332,8 +339,6 @@ class DeployWorker {
         }
       })
       .then((mapResult : SummaryMap) => {
-        // let errorCode = hasSummaryMapErrors(mapResult) ? 1 : 0;
-        // this.progress(JSON.stringify(mapResult, null, "  "));
         this.progress(createAttachmentsFromSummaryMap(request, deployment, mapResult));
         this.reportReady();
       })
