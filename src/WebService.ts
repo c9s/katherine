@@ -13,6 +13,7 @@ import {DeployRequest} from "./DeployRequest";
 import {WorkerPool} from "./WorkerPool";
 import {SlackMessage} from "./SlackMessage";
 
+const PORT = 3311;
 const config = JSON.parse(fs.readFileSync('delivery.json'));
 
 const token = process.env.SLACK_API_TOKEN || '';
@@ -50,7 +51,7 @@ Promise.all([ getChannelIds(), getUserIds() ]).then((result) => {
   let channelIds = result[0];
   let userIds = result[1];
 
-  console.log("Creating http server...");
+  console.log(`Creating http server at port ${PORT}`);
   connect(urlrouter((app) => {
     app.get('/deploy/:app/:branch/:sites', function (req, res, next) {
       let u = url.parse(req.url, true);
@@ -88,5 +89,5 @@ Promise.all([ getChannelIds(), getUserIds() ]).then((result) => {
 
       res.end('OK');
     });
-  })).listen(3000);
+  })).listen(PORT);
 });

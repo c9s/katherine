@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const uuid = require('uuid');
 const Redis = require("redis");
 const _ = require('underscore');
 
@@ -130,6 +131,8 @@ class DeployWorker {
 
   protected currentRequest : DeployRequest;
 
+  protected jobQueue : Promise<any>;
+
   constructor(name : string, directory : string) {
     this.name = name;
     this.directory = directory;
@@ -137,10 +140,17 @@ class DeployWorker {
     sub.on("message", this.handleMessage.bind(this));
     sub.subscribe(BROADCAST_CHANNEL);
     sub.subscribe(this.name);
+
+    this.jobQueue = Promise.resolve(null);
   }
 
   public start() {
     this.reportConnected();
+  }
+
+  protected log(title, output) {
+    console.log(`===> #${this.name}:${title}`);
+    console.log(output);
   }
 
   public handleMessage(channel, message) {
@@ -154,7 +164,9 @@ class DeployWorker {
           break;
         case 'deploy':
           pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
-          this.deploy(payload.request);
+          this.jobQueue = this.jobQueue.then(() => {
+            return this.deploy(payload.request);
+          });
           break;
       }
     } else if (channel === BROADCAST_CHANNEL) {
@@ -211,7 +223,7 @@ class DeployWorker {
     let deployConfig = <Config>_.extend({}, this.config.deploy);
     deployConfig.app.directory = path.resolve(path.join(this.directory, deployConfig.app.directory));
     this.deployConfig = ConfigParser.preprocess(deployConfig);
-    console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
+    // console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
   }
 
   protected deploy(request : DeployRequest) {
@@ -224,9 +236,11 @@ class DeployWorker {
 
     if (!this.deployConfig) {
       this.error("this.deployConfig is undefined.");
+      return;
     }
 
     this.currentRequest = request;
+    this.reportBusy();
 
     console.log(`#${this.name}: received deploy`, request);
 
@@ -262,8 +276,7 @@ class DeployWorker {
 
     const pull = (remote) => {
       this.progress(`Going to pull down the changes for branch ${request.branch}...`);
-      return this.repo.pull(remote).then( ({ error, stdout, stderr }) => {
-        console.log(stdout);
+      return this.repo.pull(remote).then(({ error, stdout, stderr }) => {
         console.log(stderr);
         if (error) {
           self.error(error);
@@ -300,7 +313,7 @@ class DeployWorker {
     }
 
     let deployment = null;
-    resetHard()
+    return resetHard()
       .then(() => fetch('origin'))
       .then(() => checkout('master'))
       .then(() => deleteLocalBranch(request.branch))
@@ -332,11 +345,13 @@ class DeployWorker {
         action.on('task.failed', (taskId) => {
           this.progress(':joy: ' + taskId);
         });
-
-        deployment = Deployment.create(this.deployConfig);
+        deployment = Deployment.create(this.deployConfig, uuid.v4());
         try {
           this.progress(`Started building ${request.appName} on branch ${request.branch}`);
-          return action.run(deployment, request.sites, { dryrun: false, clean: false } as any);
+          return action.run(deployment, request.sites, {
+            dryrun: false,
+            clean: false
+          } as any);
         } catch (err) {
           this.error(err);
           return Promise.reject(err);
@@ -345,6 +360,7 @@ class DeployWorker {
       .then((mapResult : SummaryMap) => {
         this.complete(createAttachmentsFromSummaryMap(request, deployment, mapResult));
         this.reportReady();
+        return Promise.resolve(mapResult);
       })
       .catch((err) => {
         console.error(err);
