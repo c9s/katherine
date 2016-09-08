@@ -169,6 +169,10 @@ class DeployBot extends SlackBot {
 
     const parseDeployStatement = new RegExp('');
     const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
+
+    if (!message.text) {
+      return;
+    }
     const matches = message.text.match(parseMentionUserId);
 
     if (!matches) {
