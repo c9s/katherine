@@ -7,6 +7,7 @@ import {RedisClient} from "redis";
 import {DeployAction, SetupAction, RestartAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {DeployRequest} from "./DeployRequest";
 import {SetupRequest} from "./SetupRequest";
+import {RestartRequest} from "./RestartRequest";
 import {Worker} from "./Worker";
 import {Request} from "./Request";
 
