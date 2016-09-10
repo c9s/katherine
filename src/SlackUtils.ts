@@ -16,42 +16,6 @@ export function createAttachmentsFromStdout(title : string, stdout : string) {
 export function createAttachmentsFromSummaryMap(request, deployment, summaryMap : SummaryMap) {
   let fields = [];
 
-  if (deployment.tag) {
-    fields.push({ 
-      'title': 'Source',
-      'value': deployment.tag,
-      'short': true
-    })
-  }
-
-  if (deployment.revInfo && deployment.revInfo.commits.length > 0) {
-    const firstCommit = deployment.revInfo.commits[0];
-    fields.push({ 
-      'title': 'Commit',
-      'value': firstCommit.hash,
-      'short': true
-    })
-    if (firstCommit.committedAt) {
-      fields.push({ 
-        'title': 'Committed At',
-        'value': firstCommit.committedAt,
-        'short': true
-      })
-    }
-    if (firstCommit.author) {
-      fields.push({ 
-        'title': 'Author',
-        'value': firstCommit.author.name,
-        'short': true
-      })
-    }
-    if (firstCommit.message) {
-      fields.push({ 
-        'title': 'Commit',
-        'value': firstCommit.message,
-      })
-    }
-  }
 
   if (request.sites) {
     fields.push({ 
@@ -67,7 +31,6 @@ export function createAttachmentsFromSummaryMap(request, deployment, summaryMap 
       'short': true
     })
   }
-
   if (request.fromMessage && request.fromMessage.user) {
     fields.push({ 
       'title': 'By User',
@@ -75,6 +38,47 @@ export function createAttachmentsFromSummaryMap(request, deployment, summaryMap 
       'short': true
     })
   }
+
+  if (deployment.revInfo) {
+
+    if (deployment.revInfo.describe) {
+      fields.push({ 
+        'title': 'Describe',
+        'value': deployment.revInfo.describe,
+        'short': true
+      })
+    }
+
+    if (deployment.revInfo.commits.length > 0) {
+      const firstCommit = deployment.revInfo.commits[0];
+      fields.push({ 
+        'title': 'Commit',
+        'value': firstCommit.hash,
+        'short': true
+      })
+      if (firstCommit.committedAt) {
+        fields.push({ 
+          'title': 'Committed At',
+          'value': firstCommit.committedAt,
+          'short': true
+        })
+      }
+      if (firstCommit.author) {
+        fields.push({ 
+          'title': 'Author',
+          'value': firstCommit.author.name,
+          'short': true
+        })
+      }
+      if (firstCommit.message) {
+        fields.push({ 
+          'title': 'Commit',
+          'value': firstCommit.message,
+        })
+      }
+    }
+  }
+
 
   let attachments = [];
   _.each(summaryMap, (summaryMapResult : SummaryMapResult, host : string) => {
