@@ -353,8 +353,18 @@ export class DeployWorker extends Worker {
       return;
     }
     this.reportBusy();
+    const proc = new SetupProcess(this, this.pub, request);
+    return proc.start()
+      .then((mapResult : SummaryMap) => {
+        this.reportReady();
+        return Promise.resolve(mapResult);
+      })
+      .catch((err) => {
+        console.error(err);
+        this.error(err);
+        this.reportReady();
+      });
 
-    this.reportReady();
   }
 
   protected deploy(request : DeployRequest) {
