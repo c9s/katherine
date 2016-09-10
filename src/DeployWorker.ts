@@ -270,6 +270,12 @@ export class DeployWorker extends Worker {
           this.setConfig(payload.config);
           this.reportReady();
           break;
+        case 'setup':
+          this.pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
+          this.jobQueue = this.jobQueue.then(() => {
+            return this.setup(payload.request);
+          });
+          break;
         case 'deploy':
           this.pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
           this.jobQueue = this.jobQueue.then(() => {
