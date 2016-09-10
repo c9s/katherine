@@ -26,8 +26,8 @@ export class WorkerPool extends EventEmitter {
 
   public fork() {
     for (let poolName in this.poolConfig) {
-      let poolDirectory = this.poolConfig[poolName];
-      let worker = child_process.fork(path.resolve(__dirname + '/../bin/worker'), [poolName, poolDirectory]);
+      const poolDirectory = this.poolConfig[poolName];
+      const worker = child_process.fork(path.resolve(__dirname + '/../bin/worker'), [poolName, poolDirectory]);
       this.workerProcesses[poolName] = worker;
     }
   }

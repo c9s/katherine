@@ -246,7 +246,7 @@ console.log("===> Forking deploy workers ...");
 workerPool.fork();
 
 if (config.web) {
-  const httpServer = child_process.fork(path.resolve(__dirname + '/../src/WebService', []));
+  const httpServer = child_process.fork(path.resolve(__dirname + '/../src/WebService'), []);
 }
 
 console.log("===> Starting RTM ...");
