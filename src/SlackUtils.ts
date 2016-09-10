@@ -25,21 +25,30 @@ export function createAttachmentsFromSummaryMap(request, deployment, summaryMap 
   }
 
   if (deployment.revInfo && deployment.revInfo.commits.length > 0) {
+    const firstCommit = deployment.revInfo.commits[0];
     fields.push({ 
       'title': 'Commit',
-      'value': deployment.revInfo.commits[0].hash,
+      'value': firstCommit.hash,
       'short': true
     })
-    fields.push({ 
-      'title': 'Committed At',
-      'value': deployment.revInfo.commits[0].committedAt,
-      'short': true
-    })
-    if (deployment.revInfo.commits[0].author) {
+    if (firstCommit.committedAt) {
+      fields.push({ 
+        'title': 'Committed At',
+        'value': firstCommit.committedAt,
+        'short': true
+      })
+    }
+    if (firstCommit.author) {
       fields.push({ 
         'title': 'Author',
-        'value': deployment.revInfo.commits[0].author.name,
+        'value': firstCommit.author.name,
         'short': true
+      })
+    }
+    if (firstCommit.message) {
+      fields.push({ 
+        'title': 'Commit',
+        'value': firstCommit.message,
       })
     }
   }
