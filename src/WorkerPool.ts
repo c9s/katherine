@@ -1,5 +1,8 @@
 
-var _ = require('underscore');
+const _ = require('underscore');
+
+import path = require("path");
+
 import child_process = require('child_process');
 import {EventEmitter} from 'events';
 const Redis = require("redis");
@@ -24,7 +27,7 @@ export class WorkerPool extends EventEmitter {
   public fork() {
     for (let poolName in this.poolConfig) {
       let poolDirectory = this.poolConfig[poolName];
-      let worker = child_process.fork(__dirname + '/../bin/worker', [poolName, poolDirectory]);
+      let worker = child_process.fork(path.resolve(__dirname + '/../bin/worker'), [poolName, poolDirectory]);
       this.workerProcesses[poolName] = worker;
     }
   }
