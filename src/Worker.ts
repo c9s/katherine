@@ -287,10 +287,23 @@ class DeployWorker {
       });
     }
 
+    const cleanForce = () => {
+      this.progress(`Removing untracked files...`);
+      return this.repo.clean({ 'force': true, 'removeUntrackedDirectory': true }).then(({ error, stdout, stderr }) => {
+        this.debug(createAttachmentsFromStdout("Repository is now cleaned.", stdout));
+        console.log(stderr);
+        if (error) {
+          self.error(error);
+          return;
+        }
+        return Promise.resolve();
+      });
+    }
+
     const resetHard = () => {
       this.progress(`Resetting changes...`);
       return this.repo.reset({ 'hard': true }).then(({ error, stdout, stderr }) => {
-        this.debug(createAttachmentsFromStdout("Repository is now cleaned.", stdout));
+        this.debug(createAttachmentsFromStdout("Changes have been reset.", stdout));
         if (error) {
           self.error(error);
           return;
@@ -314,6 +327,7 @@ class DeployWorker {
 
     let deployment = null;
     return resetHard()
+      .then(() => cleanForce())
       .then(() => fetch('origin'))
       .then(() => checkout('master'))
       .then(() => deleteLocalBranch(request.branch))
