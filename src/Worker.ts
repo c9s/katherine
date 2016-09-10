@@ -364,7 +364,7 @@ class DeployWorker {
           this.progress(`Started building ${request.appName} on branch ${request.branch}`);
           return action.run(deployment, request.sites, {
             dryrun: false,
-            clean: false
+            clean: true
           } as any);
         } catch (err) {
           this.error(err);
