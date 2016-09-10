@@ -16,6 +16,7 @@ function compileCaptureGroups(input : string, groups) : string {
 }
 
 export class Pattern {
+
   public pattern : string;
 
   public flags : string;
@@ -38,7 +39,7 @@ export class Pattern {
     this.regexp = new RegExp(this.pattern, this.flags)
   }
 
-  public match(input : string) {
+  public match(input : string) : any {
     let matches = input.match(this.regexp);
     let captures = {};
     if (matches) {

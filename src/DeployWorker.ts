@@ -4,8 +4,9 @@ const uuid = require('uuid');
 const _ = require('underscore');
 
 import {RedisClient} from "redis";
-import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
+import {DeployAction, SetupAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {DeployRequest} from "./DeployRequest";
+import {SetupRequest} from "./SetupRequest";
 import {Worker} from "./Worker";
 import {Request} from "./Request";
 
@@ -13,7 +14,7 @@ import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
 
 import {createAttachmentsFromStdout, createAttachmentsFromSummaryMap} from "./SlackUtils";
 
-class BaseProcess {
+abstract class BaseProcess {
 
   protected worker : Worker;
 
@@ -25,23 +26,6 @@ class BaseProcess {
     this.worker = worker;
     this.pub = pub;
     this.currentRequest = currentRequest;
-  }
-
-}
-
-class DeployProcess extends BaseProcess {
-
-  protected worker : DeployWorker;
-
-  protected currentRequest : DeployRequest;
-
-  constructor(worker : DeployWorker, pub : RedisClient, currentRequest : DeployRequest) {
-    super(worker, pub, currentRequest);
-  }
-
-  protected log(title : string, output) {
-    console.log(`===> #${this.worker.name}:${title}`);
-    console.log(output);
   }
 
   protected debug(message) {
@@ -68,11 +52,68 @@ class DeployProcess extends BaseProcess {
     this.pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'error', 'message': message, 'currentRequest': this.currentRequest }));
   }
 
+  protected log(title : string, output) {
+    console.log(`===> #${this.worker.name}:${title}`);
+    console.log(output);
+  }
+
+  public abstract start();
+}
+
+class SetupProcess extends BaseProcess {
+
+  protected worker : DeployWorker;
+
+  protected currentRequest : SetupRequest;
+
   public start() {
     const worker = this.worker;
     const request = this.currentRequest;
     const self = this;
+    this.progress(`OK, start setting up...`);
 
+    let action = new SetupAction(worker.deployConfig);
+    action.on('task.started', (taskId) => {
+      this.progress({
+        "attachments": [{
+          "text": `Started ${taskId}`,
+          "fallback": `Started ${taskId}`,
+          "color": "#ccc",
+          "mrkdwn_in": ["text", "pretext"]
+        }]
+      });
+    });
+    action.on('task.success', (taskId) => {
+      this.progress({
+        "attachments": [{
+          "fallback": `Succeed ${taskId}`,
+          "text": `Succeed ${taskId}`,
+          "color": "#36a64f",
+          "mrkdwn_in": ["text", "pretext"]
+        }]
+      });
+    });
+    action.on('task.failed', (taskId) => {
+      this.progress(':joy: ' + taskId);
+    });
+    const deployment = Deployment.create(worker.deployConfig, uuid.v4());
+    return action.run(deployment, request.sites).then((mapResult : SummaryMap) => {
+      this.complete(createAttachmentsFromSummaryMap(request, deployment, mapResult));
+      return Promise.resolve(mapResult);
+    });
+  }
+}
+
+class DeployProcess extends BaseProcess {
+
+  protected worker : DeployWorker;
+
+  protected currentRequest : DeployRequest;
+
+  public start() {
+    const worker = this.worker;
+    const request = this.currentRequest;
+    const self = this;
     this.progress(`OK, checking out branch ${request.branch} ...`);
 
     const deleteLocalBranch = (branch) => {
@@ -293,10 +334,25 @@ export class DeployWorker extends Worker {
     // console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
   }
 
+  protected setup(request : SetupRequest) {
+    const self = this;
+    if (!this.config) {
+      console.log("this.config is empty");
+      // process.send({ 'type': 'errored', 'message': 'config is not set.' });
+      return;
+    }
+
+    if (!this.deployConfig) {
+      this.error("this.deployConfig is undefined.");
+      return;
+    }
+    this.reportBusy();
+
+    this.reportReady();
+  }
+
   protected deploy(request : DeployRequest) {
     const self = this;
-
-
     if (!this.config) {
       console.log("this.config is empty");
       // process.send({ 'type': 'errored', 'message': 'config is not set.' });

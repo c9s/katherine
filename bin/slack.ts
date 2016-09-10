@@ -5,16 +5,15 @@ const path = require('path');
 const slack = require('@slack/client');
 const _ = require('underscore');
 import child_process = require('child_process');
+
 import {DeployAction, GitSync, GitRepo} from "typeloy";
 import {DeployStatement} from "../src/DeployStatement";
+import {SetupStatement} from "../src/SetupStatement";
 import {WorkerPool} from "../src/WorkerPool";
-
 
 const MemoryDataStore = slack.MemoryDataStore;
 const RtmClient = slack.RtmClient;
 const token = process.env.SLACK_API_TOKEN || '';
-
-
 
 const Redis = require("redis");
 
@@ -126,9 +125,7 @@ class DeployBot extends SlackBot {
       console.log("redis.subscribe", channel, count);
     });
     sub.subscribe(MASTER_CHANNEL);
-
   }
-
 
   handleMasterMessage(channel : string, message : string) {
     let payload = JSON.parse(message);
@@ -169,32 +166,44 @@ class DeployBot extends SlackBot {
     }
 
     const parseDeployStatement = new RegExp('');
-    const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
+    const parseMentionUserId = new RegExp('^<@(\\w+)>:?\\s*');
 
     if (!message.text) {
       return;
     }
-    const matches = message.text.match(parseMentionUserId);
 
+    const matches = message.text.match(parseMentionUserId);
     if (!matches) {
       return;
     }
     console.log("Request matches ID: ", matches);
+
     const objectId = matches[1];
+
+    const statements = {
+      'deploy': new DeployStatement,
+      'setup': new SetupStatement
+    };
 
     // talking to me...
     if (objectId == this.startData.self.id) {
       let sentence = message.text.replace(parseMentionUserId, '');
-      let s = new DeployStatement;
-      let request = s.parse(sentence);
-      request.fromMessage = message;
-      this.workerPool.findIdleWorker().then((workerId) => {
-        pub.publish(workerId, JSON.stringify({ 'type': 'deploy', 'request' : request }));
-      }).catch((e) => {
-        console.log(e);
-        this.rtm.sendMessage(`Error: ${e}`, message.channel);
-        // this.rtm.sendMessage(formatReply(message.user, 'Sorry, all the workers are busy...'), message.channel);
-      });
+
+      for (var jobType in statements) {
+        const s = statements[jobType];
+        const request = s.parse(sentence);
+        if (request) {
+          request.fromMessage = message;
+          this.workerPool.findIdleWorker().then((workerId) => {
+            pub.publish(workerId, JSON.stringify({ 'type': jobType, 'request' : request }));
+          }).catch((e) => {
+            console.log(e);
+            this.rtm.sendMessage(`Error: ${e}`, message.channel);
+          });
+        } else {
+          this.rtm.sendMessage(formatReply(message.user, "Sorry, I don't understand."), message.channel);
+        }
+      }
     }
   }
 
