@@ -1,6 +1,7 @@
 /// <reference path="../node_modules/typeloy/lib/src/index.d.ts" />
 
 const fs = require('fs');
+const path = require('path');
 const slack = require('@slack/client');
 const _ = require('underscore');
 import child_process = require('child_process');
@@ -245,7 +246,7 @@ console.log("===> Forking deploy workers ...");
 workerPool.fork();
 
 if (config.web) {
-  const httpServer = child_process.fork(__dirname + '/../src/WebService', []);
+  const httpServer = child_process.fork(path.resolve(__dirname + '/../src/WebService', []));
 }
 
 console.log("===> Starting RTM ...");
