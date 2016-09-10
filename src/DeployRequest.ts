@@ -1,7 +1,7 @@
-
 import {SlackMessage} from "./SlackMessage";
+import {Request} from "./Request";
 
-export interface DeployRequest {
+export interface DeployRequest extends Request {
 
   branch : string;
 

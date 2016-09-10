@@ -1,19 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 const uuid = require('uuid');
-const Redis = require("redis");
 const _ = require('underscore');
 
 import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {DeployRequest} from "./DeployRequest";
+import {RedisClient} from "redis";
 
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
 
 import {createAttachmentsFromStdout, createAttachmentsFromSummaryMap} from "./SlackUtils";
 
 interface WorkerConfig {
-  pub : any;
-  sub : any;
+  pub : RedisClient;
+  sub : RedisClient;
 }
 
 export abstract class Worker {

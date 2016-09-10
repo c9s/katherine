@@ -1,29 +1,42 @@
 const fs = require('fs');
 const path = require('path');
 const uuid = require('uuid');
-const Redis = require("redis");
 const _ = require('underscore');
 
+import {RedisClient} from "redis";
 import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {DeployRequest} from "./DeployRequest";
 import {Worker} from "./Worker";
+import {Request} from "./Request";
 
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
 
 import {createAttachmentsFromStdout, createAttachmentsFromSummaryMap} from "./SlackUtils";
 
-class DeployProcess {
+class BaseProcess {
 
-  protected worker : DeployWorker;
+  protected worker : Worker;
 
-  protected pub : any;
+  protected currentRequest : Request;
 
-  protected currentRequest : DeployRequest;
+  protected pub : RedisClient;
 
-  constructor(worker : DeployWorker, pub, currentRequest : DeployRequest) {
+  constructor(worker, pub : RedisClient, currentRequest : Request) {
     this.worker = worker;
     this.pub = pub;
     this.currentRequest = currentRequest;
+  }
+
+}
+
+class DeployProcess extends BaseProcess {
+
+  protected worker : DeployWorker;
+
+  protected currentRequest : DeployRequest;
+
+  constructor(worker : DeployWorker, pub : RedisClient, currentRequest : DeployRequest) {
+    super(worker, pub, currentRequest);
   }
 
   protected log(title : string, output) {

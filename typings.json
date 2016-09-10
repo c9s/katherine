@@ -18,7 +18,8 @@
     "winston": "registry:dt/winston#0.0.0+20160417152829"
   },
   "dependencies": {
-    "object-assign": "registry:npm/object-assign#4.0.1+20160301180549"
+    "object-assign": "registry:npm/object-assign#4.0.1+20160301180549",
+    "redis": "registry:npm/redis#2.6.0+20160901110043"
   },
   "globalDevDependencies": {
     "chai": "registry:dt/chai#3.4.0+20160601211834"
