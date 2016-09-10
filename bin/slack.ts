@@ -166,7 +166,7 @@ class DeployBot extends SlackBot {
     }
 
     const parseDeployStatement = new RegExp('');
-    const parseMentionUserId = new RegExp('^<@(\\w+)>:?\\s*');
+    const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
 
     if (!message.text) {
       return;
@@ -188,22 +188,22 @@ class DeployBot extends SlackBot {
     // talking to me...
     if (objectId == this.startData.self.id) {
       let sentence = message.text.replace(parseMentionUserId, '');
-
-      for (var jobType in statements) {
+      for (const jobType in statements) {
         const s = statements[jobType];
         const request = s.parse(sentence);
         if (request) {
           request.fromMessage = message;
           this.workerPool.findIdleWorker().then((workerId) => {
+            console.log(`jobType: ${jobType} worker ${workerId}`);
             pub.publish(workerId, JSON.stringify({ 'type': jobType, 'request' : request }));
           }).catch((e) => {
             console.log(e);
             this.rtm.sendMessage(`Error: ${e}`, message.channel);
           });
-        } else {
-          this.rtm.sendMessage(formatReply(message.user, "Sorry, I don't understand."), message.channel);
+          return;
         }
       }
+      this.rtm.sendMessage(formatReply(message.user, "Sorry, I don't understand."), message.channel);
     }
   }
 
