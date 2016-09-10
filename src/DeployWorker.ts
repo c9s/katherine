@@ -354,7 +354,7 @@ export class DeployWorker extends Worker {
     // console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
   }
 
-  protected restart(request : Request) {
+  protected restart(request : RestartRequest) {
     const self = this;
     if (!this.config) {
       console.log("this.config is empty");
@@ -367,7 +367,7 @@ export class DeployWorker extends Worker {
       return;
     }
     this.reportBusy();
-    const proc = new SetupProcess(this, this.pub, request);
+    const proc = new RestartProcess(this, this.pub, request);
     return proc.start()
       .then((mapResult : SummaryMap) => {
         this.reportReady();
