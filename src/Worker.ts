@@ -28,7 +28,9 @@ export abstract class Worker {
 
   public deployConfig : any;
 
-  public pub : any;
+  public pub : RedisClient;
+
+  public sub : RedisClient;
 
   protected currentRequest : DeployRequest;
 
@@ -41,8 +43,12 @@ export abstract class Worker {
 
     this.pub = config.pub;
 
-    const sub = config.sub;
+    const sub = this.sub = config.sub;
+
+    // Setup handleMessage handler
     sub.on("message", this.handleMessage.bind(this));
+
+    // subscribe
     sub.subscribe(BROADCAST_CHANNEL);
     sub.subscribe(this.name);
     this.jobQueue = Promise.resolve(null);
