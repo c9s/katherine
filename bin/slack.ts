@@ -9,6 +9,7 @@ import child_process = require('child_process');
 import {DeployAction, GitSync, GitRepo} from "typeloy";
 import {DeployStatement} from "../src/DeployStatement";
 import {SetupStatement} from "../src/SetupStatement";
+import {RestartStatement} from "../src/RestartStatement";
 import {WorkerPool} from "../src/WorkerPool";
 
 const MemoryDataStore = slack.MemoryDataStore;
@@ -182,7 +183,8 @@ class DeployBot extends SlackBot {
 
     const statements = {
       'deploy': new DeployStatement,
-      'setup': new SetupStatement
+      'setup': new SetupStatement,
+      'restart': new RestartStatement,
     };
 
     // talking to me...
@@ -194,7 +196,7 @@ class DeployBot extends SlackBot {
         if (request) {
           request.fromMessage = message;
           this.workerPool.findIdleWorker().then((workerId) => {
-            console.log(`jobType: ${jobType} worker ${workerId}`);
+            console.log(`job: ${jobType} => worker ${workerId}`);
             pub.publish(workerId, JSON.stringify({ 'type': jobType, 'request' : request }));
           }).catch((e) => {
             console.log(e);

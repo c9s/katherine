@@ -4,7 +4,7 @@ const uuid = require('uuid');
 const _ = require('underscore');
 
 import {RedisClient} from "redis";
-import {DeployAction, SetupAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
+import {DeployAction, SetupAction, RestartAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {DeployRequest} from "./DeployRequest";
 import {SetupRequest} from "./SetupRequest";
 import {Worker} from "./Worker";
@@ -92,7 +92,6 @@ class SetupProcess extends BaseProcess {
 
   protected currentRequest : SetupRequest;
 
-
   public start() {
     const worker = this.worker;
     const request = this.currentRequest;
@@ -108,6 +107,33 @@ class SetupProcess extends BaseProcess {
     });
   }
 }
+
+
+class RestartProcess extends BaseProcess {
+
+  protected worker : DeployWorker;
+
+  protected currentRequest : SetupRequest;
+
+  public start() {
+    const worker = this.worker;
+    const request = this.currentRequest;
+    const self = this;
+    this.progress(`OK, restarting...`);
+
+    let action = new RestartAction(worker.deployConfig);
+    const deployment = Deployment.create(worker.deployConfig, uuid.v4());
+    this.bindActionProgress(action);
+    return action.run(deployment, request.sites).then((mapResult : SummaryMap) => {
+      this.complete(createAttachmentsFromSummaryMap(request, deployment, mapResult));
+      return Promise.resolve(mapResult);
+    });
+  }
+}
+
+
+
+
 
 class DeployProcess extends BaseProcess {
 
@@ -264,6 +290,12 @@ export class DeployWorker extends Worker {
             return this.deploy(payload.request);
           });
           break;
+        case 'restart':
+          this.pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
+          this.jobQueue = this.jobQueue.then(() => {
+            return this.restart(payload.request);
+          });
+          break;
       }
     } else if (channel === BROADCAST_CHANNEL) {
       switch (payload.type) {
@@ -320,6 +352,32 @@ export class DeployWorker extends Worker {
     deployConfig.app.directory = path.resolve(path.join(this.directory, deployConfig.app.directory));
     this.deployConfig = ConfigParser.preprocess(deployConfig);
     // console.log("Generated deployConfig", JSON.stringify(this.deployConfig, null, "  "));
+  }
+
+  protected restart(request : Request) {
+    const self = this;
+    if (!this.config) {
+      console.log("this.config is empty");
+      // process.send({ 'type': 'errored', 'message': 'config is not set.' });
+      return;
+    }
+
+    if (!this.deployConfig) {
+      this.error("this.deployConfig is undefined.");
+      return;
+    }
+    this.reportBusy();
+    const proc = new SetupProcess(this, this.pub, request);
+    return proc.start()
+      .then((mapResult : SummaryMap) => {
+        this.reportReady();
+        return Promise.resolve(mapResult);
+      })
+      .catch((err) => {
+        console.error(err);
+        this.error(err);
+        this.reportReady();
+      });
   }
 
   protected setup(request : SetupRequest) {
