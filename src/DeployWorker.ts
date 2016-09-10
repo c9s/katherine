@@ -57,23 +57,8 @@ abstract class BaseProcess {
     console.log(output);
   }
 
-  public abstract start();
-}
-
-class SetupProcess extends BaseProcess {
-
-  protected worker : DeployWorker;
-
-  protected currentRequest : SetupRequest;
-
-  public start() {
-    const worker = this.worker;
-    const request = this.currentRequest;
-    const self = this;
-    this.progress(`OK, start setting up...`);
-
-    let action = new SetupAction(worker.deployConfig);
-    action.on('task.started', (taskId) => {
+  protected bindActionProgress(action) {
+    action.on('task.started', (taskId : string) => {
       this.progress({
         "attachments": [{
           "text": `Started ${taskId}`,
@@ -83,7 +68,7 @@ class SetupProcess extends BaseProcess {
         }]
       });
     });
-    action.on('task.success', (taskId) => {
+    action.on('task.success', (taskId : string) => {
       this.progress({
         "attachments": [{
           "fallback": `Succeed ${taskId}`,
@@ -93,10 +78,30 @@ class SetupProcess extends BaseProcess {
         }]
       });
     });
-    action.on('task.failed', (taskId) => {
+    action.on('task.failed', (taskId : string) => {
       this.progress(':joy: ' + taskId);
     });
+  }
+
+  public abstract start();
+}
+
+class SetupProcess extends BaseProcess {
+
+  protected worker : DeployWorker;
+
+  protected currentRequest : SetupRequest;
+
+
+  public start() {
+    const worker = this.worker;
+    const request = this.currentRequest;
+    const self = this;
+    this.progress(`OK, start setting up...`);
+
+    let action = new SetupAction(worker.deployConfig);
     const deployment = Deployment.create(worker.deployConfig, uuid.v4());
+    this.bindActionProgress(action);
     return action.run(deployment, request.sites).then((mapResult : SummaryMap) => {
       this.complete(createAttachmentsFromSummaryMap(request, deployment, mapResult));
       return Promise.resolve(mapResult);
@@ -206,30 +211,7 @@ class DeployProcess extends BaseProcess {
       .then(() => submoduleUpdate())
       .then(() => {
         let action = new DeployAction(worker.deployConfig);
-        action.on('task.started', (taskId) => {
-          this.progress({
-            "attachments": [{
-              "text": `Started ${taskId}`,
-              "fallback": `Started ${taskId}`,
-              "color": "#ccc",
-              "mrkdwn_in": ["text", "pretext"]
-            }]
-          });
-        });
-        action.on('task.success', (taskId) => {
-          this.progress({
-            "attachments": [{
-              "fallback": `Succeed ${taskId}`,
-              "text": `Succeed ${taskId}`,
-              "color": "#36a64f",
-              "mrkdwn_in": ["text", "pretext"]
-            }]
-          });
-        });
-        action.on('task.failed', (taskId) => {
-          this.progress(':joy: ' + taskId);
-        });
-
+        this.bindActionProgress(action);
         deployment = Deployment.create(worker.deployConfig, uuid.v4());
         this.progress(`Started building ${request.appName} on branch ${request.branch}`);
         return action.run(deployment, request.sites, {
@@ -364,7 +346,6 @@ export class DeployWorker extends Worker {
         this.error(err);
         this.reportReady();
       });
-
   }
 
   protected deploy(request : DeployRequest) {
