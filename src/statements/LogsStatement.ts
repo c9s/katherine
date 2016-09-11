@@ -6,7 +6,7 @@ export class LogsStatement extends Statement {
 
   constructor() {
     super();
-    this.patterns.push(new Pattern("show me the logs (?:to|on) :sites", "i", {
+    this.patterns.push(new Pattern("show me the logs (?:to|on) :sites(?: (?:servers?|sites?))?", "i", {
       "sites": { "pattern": "[a-zA-Z-_,]+" },
     }));
   }

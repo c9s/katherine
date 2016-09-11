@@ -115,7 +115,7 @@ function pretext(text) {
   return "```\n" + text.trim() + "\n```";
 }
 
-class LogProcess extends BaseProcess {
+class LogsProcess extends BaseProcess {
 
   protected currentRequest : LogsRequest;
 
@@ -124,12 +124,12 @@ class LogProcess extends BaseProcess {
     const request = this.currentRequest;
     const self = this;
     const action = new LogsAction(worker.deployConfig, {
-      "onStdout": (hostPrefix, data) => {
-        this.progress(pretext(hostPrefix + ": " + data));
-      },
-      "onStderr": (hostPrefix, data) => {
-        this.progress(pretext(hostPrefix + ": " + data));
-      },
+        "onStdout": (hostPrefix, data) => {
+            this.progress(pretext(hostPrefix + ": " + data));
+        },
+        "onStderr": (hostPrefix, data) => {
+            this.progress(pretext(hostPrefix + ": " + data));
+        },
     });
     const deployment = Deployment.create(worker.deployConfig, uuid.v4());
     return action.run(deployment, request.sites, {});
@@ -314,6 +314,12 @@ export class DeployWorker extends Worker {
             return this.setup(payload.request);
           });
           break;
+        case 'logs':
+          this.pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
+          this.jobQueue = this.jobQueue.then(() => {
+            return this.logs(payload.request);
+          });
+          break;
         case 'deploy':
           this.pub.publish(MASTER_CHANNEL, JSON.stringify({ 'type': 'start', 'name' : this.name }));
           this.jobQueue = this.jobQueue.then(() => {
@@ -428,6 +434,35 @@ export class DeployWorker extends Worker {
       .then((mapResult : SummaryMap) => {
         this.reportReady();
         return Promise.resolve(mapResult);
+      })
+      .catch((err) => {
+        console.error(err);
+        this.error(err);
+        this.reportReady();
+      });
+  }
+
+  protected logs(request : LogsRequest) {
+    const self = this;
+    if (!this.config) {
+      console.log("this.config is empty");
+      // process.send({ 'type': 'errored', 'message': 'config is not set.' });
+      return;
+    }
+    if (!this.deployConfig) {
+      this.error("this.deployConfig is undefined.");
+      return;
+    }
+
+    this.currentRequest = request;
+    this.reportBusy();
+    console.log(`#${this.name}: received deploy`, request);
+
+    const proc = new LogsProcess(this, this.pub, request);
+    return proc.start()
+      .then(() => {
+        this.reportReady();
+        return Promise.resolve();
       })
       .catch((err) => {
         console.error(err);
