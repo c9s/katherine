@@ -55,7 +55,7 @@ export function buildDeploymentRevAttachment(deployment : Deployment) {
     }
   }
   const attachment = {
-    "text": `Application Revision`,
+    "title": `Application Revision`,
     "fallback": `Application Revision`,
     "color": "#cccccc",
     "fields": fields,
@@ -88,7 +88,7 @@ export function buildRequestAttachment(request) {
     })
   }
   const attachment = {
-    "text": `Operation Request`,
+    "title": `Operation Request`,
     "fallback": `Operation Request`,
     "color": "#cccccc",
     "fields": fields,
