@@ -1,4 +1,4 @@
-import {Pattern} from "./Pattern";
+import {Pattern} from "../Pattern";
 
 export class Statement {
 

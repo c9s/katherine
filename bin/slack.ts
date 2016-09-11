@@ -7,9 +7,7 @@ const _ = require('underscore');
 import child_process = require('child_process');
 
 import {DeployAction, GitSync, GitRepo} from "typeloy";
-import {DeployStatement} from "../src/DeployStatement";
-import {SetupStatement} from "../src/SetupStatement";
-import {RestartStatement} from "../src/RestartStatement";
+import {DeployStatement, SetupStatement, RestartStatement, LogsStatement} from "../src/statements";
 import {WorkerPool} from "../src/WorkerPool";
 
 const MemoryDataStore = slack.MemoryDataStore;
@@ -182,14 +180,15 @@ class DeployBot extends SlackBot {
     const objectId = matches[1];
 
     const statements = {
-      'deploy': new DeployStatement,
-      'setup': new SetupStatement,
-      'restart': new RestartStatement,
+      'deploy'  : new DeployStatement,
+      'setup'   : new SetupStatement,
+      'restart' : new RestartStatement,
+      'logs'    : new LogsStatement,
     };
 
     // talking to me...
     if (objectId == this.startData.self.id) {
-      let sentence = message.text.replace(parseMentionUserId, '');
+      const sentence = message.text.replace(parseMentionUserId, '');
       for (const jobType in statements) {
         const s = statements[jobType];
         const request = s.parse(sentence);

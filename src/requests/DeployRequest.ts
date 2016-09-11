@@ -1,4 +1,4 @@
-import {SlackMessage} from "./SlackMessage";
+import {SlackMessage} from "../SlackMessage";
 import {Request} from "./Request";
 
 export interface DeployRequest extends Request {

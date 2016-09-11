@@ -1,5 +1,5 @@
-import {Pattern} from "./Pattern";
-import {RestartRequest} from "./RestartRequest";
+import {Pattern} from "../Pattern";
+import {RestartRequest} from "../requests";
 import {Statement} from "./Statement";
 
 export class RestartStatement extends Statement {

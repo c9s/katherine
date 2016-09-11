@@ -4,12 +4,13 @@ const uuid = require('uuid');
 const _ = require('underscore');
 
 import {RedisClient} from "redis";
-import {DeployAction, SetupAction, RestartAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
-import {DeployRequest} from "./DeployRequest";
-import {SetupRequest} from "./SetupRequest";
-import {RestartRequest} from "./RestartRequest";
+import {DeployAction, SetupAction, RestartAction, LogsAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
+import {Request} from "./requests/Request";
+import {DeployRequest} from "./requests/DeployRequest";
+import {SetupRequest} from "./requests/SetupRequest";
+import {RestartRequest} from "./requests/RestartRequest";
+import {LogsRequest} from "./requests/LogsRequest";
 import {Worker} from "./Worker";
-import {Request} from "./Request";
 
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
 
@@ -99,13 +100,39 @@ class SetupProcess extends BaseProcess {
     const self = this;
     this.progress(`OK, start setting up...`);
 
-    let action = new SetupAction(worker.deployConfig);
+    const action = new SetupAction(worker.deployConfig);
     const deployment = Deployment.create(worker.deployConfig, uuid.v4());
     this.bindActionProgress(action);
     return action.run(deployment, request.sites).then((mapResult : SummaryMap) => {
       this.complete(buildAttachmentsFromSummaryMap(request, null, mapResult));
       return Promise.resolve(mapResult);
     });
+  }
+}
+
+
+function pretext(text) {
+  return "```\n" + text.trim() + "\n```";
+}
+
+class LogProcess extends BaseProcess {
+
+  protected currentRequest : LogsRequest;
+
+  public start() {
+    const worker = this.worker;
+    const request = this.currentRequest;
+    const self = this;
+    const action = new LogsAction(worker.deployConfig, {
+      "onStdout": (hostPrefix, data) => {
+        this.progress(pretext(hostPrefix + ": " + data));
+      },
+      "onStderr": (hostPrefix, data) => {
+        this.progress(pretext(hostPrefix + ": " + data));
+      },
+    });
+    const deployment = Deployment.create(worker.deployConfig, uuid.v4());
+    return action.run(deployment, request.sites, {});
   }
 }
 

@@ -14,7 +14,8 @@
     "typings/index.d.ts",
     "bin/slack.ts",
     "bin/worker.ts",
-    "src/DeployStatement.ts",
+    "src/statements.ts",
+    "src/requests.ts",
     "src/Pattern.ts",
     "src/WebService.ts",
     "tests/DeployStatementTest.ts"

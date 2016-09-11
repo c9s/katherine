@@ -7,7 +7,7 @@ var expect = chai.expect;
 
 // import {GitSync} from "../src/GitSync";
 import {Pattern} from "../src/Pattern";
-import {DeployStatement} from "../src/DeployStatement";
+import {DeployStatement} from "../src/statements";
 
 describe('DeploySentence', () => {
   describe('#parseDeploySentence', () => {

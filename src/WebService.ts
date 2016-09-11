@@ -9,7 +9,7 @@ const Redis = require("redis");
 const _ = require('underscore');
 
 import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
-import {DeployRequest} from "./DeployRequest";
+import {DeployRequest} from "./requests/DeployRequest";
 import {WorkerPool} from "./WorkerPool";
 import {SlackMessage} from "./SlackMessage";
 

@@ -4,10 +4,11 @@ const uuid = require('uuid');
 const _ = require('underscore');
 
 import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
-import {DeployRequest} from "./DeployRequest";
 import {RedisClient} from "redis";
 
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
+
+import {Request} from "./requests/Request";
 
 import {createAttachmentsFromStdout, buildAttachmentsFromSummaryMap} from "./SlackUtils";
 
@@ -32,7 +33,7 @@ export abstract class Worker {
 
   public sub : RedisClient;
 
-  protected currentRequest : DeployRequest;
+  protected currentRequest : Request;
 
   protected jobQueue : Promise<any>;
 
