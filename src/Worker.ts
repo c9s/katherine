@@ -9,7 +9,7 @@ import {RedisClient} from "redis";
 
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
 
-import {createAttachmentsFromStdout, createAttachmentsFromSummaryMap} from "./SlackUtils";
+import {createAttachmentsFromStdout, buildAttachmentsFromSummaryMap} from "./SlackUtils";
 
 interface WorkerConfig {
   pub : RedisClient;

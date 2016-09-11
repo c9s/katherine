@@ -1,5 +1,5 @@
 const _ = require('underscore');
-import {SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
+import {Deployment, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 
 export function createAttachmentsFromStdout(title : string, stdout : string) {
   return {
@@ -13,10 +13,59 @@ export function createAttachmentsFromStdout(title : string, stdout : string) {
   };
 }
 
-export function createAttachmentsFromSummaryMap(request, deployment, summaryMap : SummaryMap) {
+
+
+export function buildDeploymentRevAttachment(deployment : Deployment) {
+  const fields = [];
+  if (deployment.revInfo) {
+    if (deployment.revInfo.describe) {
+      fields.push({ 
+        'title': 'Describe',
+        'value': deployment.revInfo.describe,
+        'short': true
+      })
+    }
+
+    if (deployment.revInfo.commits.length > 0) {
+      const firstCommit = deployment.revInfo.commits[0];
+      fields.push({ 
+        'title': 'Commit',
+        'value': firstCommit.hash
+      })
+      if (firstCommit.message) {
+        fields.push({ 
+          'title': 'Commit',
+          'value': firstCommit.message,
+        })
+      }
+      if (firstCommit.date) {
+        fields.push({ 
+          'title': 'Committed At',
+          'value': firstCommit.date,
+          'short': true
+        })
+      }
+      if (firstCommit.author) {
+        fields.push({ 
+          'title': 'Author',
+          'value': firstCommit.author.name,
+          'short': true
+        })
+      }
+    }
+  }
+  const attachment = {
+    "text": `Application Revision`,
+    "fallback": `Application Revision`,
+    "color": "#cccccc",
+    "fields": fields,
+    "mrkdwn_in": ["text", "pretext", "fields"]
+  };
+  return attachment;
+}
+
+export function buildRequestAttachment(request) {
   let fields = [];
-
-
   if (request.sites) {
     fields.push({ 
       'title': 'Sites',
@@ -38,72 +87,45 @@ export function createAttachmentsFromSummaryMap(request, deployment, summaryMap 
       'short': true
     })
   }
+  const attachment = {
+    "text": `Operation Request`,
+    "fallback": `Operation Request`,
+    "color": "#cccccc",
+    "fields": fields,
+    "mrkdwn_in": ["text", "pretext", "fields"]
+  };
+  return attachment;
+}
 
-  if (deployment.revInfo) {
-
-    if (deployment.revInfo.describe) {
-      fields.push({ 
-        'title': 'Describe',
-        'value': deployment.revInfo.describe,
-        'short': true
-      })
-    }
-
-    if (deployment.revInfo.commits.length > 0) {
-      const firstCommit = deployment.revInfo.commits[0];
-      fields.push({ 
-        'title': 'Commit',
-        'value': firstCommit.hash,
-        'short': true
-      })
-      if (firstCommit.committedAt) {
-        fields.push({ 
-          'title': 'Committed At',
-          'value': firstCommit.committedAt,
-          'short': true
-        })
-      }
-      if (firstCommit.author) {
-        fields.push({ 
-          'title': 'Author',
-          'value': firstCommit.author.name,
-          'short': true
-        })
-      }
-      if (firstCommit.message) {
-        fields.push({ 
-          'title': 'Commit',
-          'value': firstCommit.message,
-        })
-      }
-    }
-  }
-
-
+export function buildAttachmentsFromSummaryMap(request, deployment : Deployment = null, summaryMap : SummaryMap) {
   let attachments = [];
+  if (deployment) {
+    attachments.push(buildDeploymentRevAttachment(deployment));
+  }
+  if (request) {
+    attachments.push(buildRequestAttachment(request));
+  }
   _.each(summaryMap, (summaryMapResult : SummaryMapResult, host : string) => {
     let err = summaryMapResult.error;
     let message = null;
 
     if (err) {
-      let failedItems = _.filter(summaryMapResult.history, (historyItem: SummaryMapHistory) => historyItem.error);
+      const failedItems = _.filter(summaryMapResult.history, (historyItem: SummaryMapHistory) => historyItem.error);
       _.each(failedItems, (failedItem : SummaryMapHistory) => {
         attachments.push({
-          "pretext": `The deployment on host ${host} has failed.`,
-          "fallback": `The deployment on host ${host} has failed.`,
+          "pretext": `The operation on host ${host} has failed.`,
+          "fallback": `The operation on host ${host} has failed.`,
           "text": "```\n" + failedItem.error.trim() + "\n```",
           "color": "red",
-          "fields": fields,
-          "mrkdwn_in": ["text", "pretext", "fields"]
+          "mrkdwn_in": ["text", "pretext"]
         });
       });
     } else {
       attachments.push({
-        "text": `The deployment on host ${host} has been successfully performed.`,
-        "fallback": `The deployment on host ${host} has been successfully performed.`,
+        "text": `The operation on host ${host} has been successfully performed.`,
+        "fallback": `The operation on host ${host} has been successfully performed.`,
         "color": "#36a64f",
-        "fields": fields,
-        "mrkdwn_in": ["text", "pretext", "fields"]
+        "mrkdwn_in": ["text", "pretext"]
       });
     }
   });

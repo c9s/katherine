@@ -13,7 +13,7 @@ import {Request} from "./Request";
 
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
 
-import {createAttachmentsFromStdout, createAttachmentsFromSummaryMap} from "./SlackUtils";
+import {createAttachmentsFromStdout, buildAttachmentsFromSummaryMap} from "./SlackUtils";
 
 abstract class BaseProcess {
 
@@ -23,7 +23,7 @@ abstract class BaseProcess {
 
   protected pub : RedisClient;
 
-  constructor(worker, pub : RedisClient, currentRequest : Request) {
+  constructor(worker : Worker, pub : RedisClient, currentRequest : Request) {
     this.worker = worker;
     this.pub = pub;
     this.currentRequest = currentRequest;
@@ -103,7 +103,7 @@ class SetupProcess extends BaseProcess {
     const deployment = Deployment.create(worker.deployConfig, uuid.v4());
     this.bindActionProgress(action);
     return action.run(deployment, request.sites).then((mapResult : SummaryMap) => {
-      this.complete(createAttachmentsFromSummaryMap(request, deployment, mapResult));
+      this.complete(buildAttachmentsFromSummaryMap(request, null, mapResult));
       return Promise.resolve(mapResult);
     });
   }
@@ -126,7 +126,7 @@ class RestartProcess extends BaseProcess {
     const deployment = Deployment.create(worker.deployConfig, uuid.v4());
     this.bindActionProgress(action);
     return action.run(deployment, request.sites).then((mapResult : SummaryMap) => {
-      this.complete(createAttachmentsFromSummaryMap(request, deployment, mapResult));
+      this.complete(buildAttachmentsFromSummaryMap(request, null, mapResult));
       return Promise.resolve(mapResult);
     });
   }
@@ -245,7 +245,7 @@ class DeployProcess extends BaseProcess {
           dryrun: false,
           clean: true
         } as any).then((mapResult : SummaryMap) => {
-          this.complete(createAttachmentsFromSummaryMap(request, deployment, mapResult));
+          this.complete(buildAttachmentsFromSummaryMap(request, deployment, mapResult));
           return Promise.resolve(mapResult);
         });
       })
@@ -254,10 +254,12 @@ class DeployProcess extends BaseProcess {
 
 
 /**
- * Right now we only implemented 2 commands:
+ * Right now we only implemented 4 commands:
  *
  * 1. config (update deploy config)
- * 2. deploy (deploy request)
+ * 2. deploy
+ * 3. restart
+ * 4. setup
  */
 export class DeployWorker extends Worker {
 
