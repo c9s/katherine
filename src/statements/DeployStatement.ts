@@ -8,7 +8,7 @@ export class DeployStatement extends Statement {
     super();
     this.patterns.push(new Pattern("(?:please )?deploy :appName from :branch branch (?:to|on) :sites(?: (?:servers?|sites?))?(?: :logging)?", "i", {
       "appName": { "pattern": "[a-zA-Z-]+" },
-      "branch": { "pattern": "[a-zA-Z-_/]+" },
+      "branch": { "pattern": "[a-zA-Z0-9-_/]+" },
       "sites": { "pattern": "[a-zA-Z-_,]+" },
       "logging": { "pattern": "verbosely|silently|debugly" }
     }));
