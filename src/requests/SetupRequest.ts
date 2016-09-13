@@ -3,7 +3,7 @@ import {Request} from "./Request";
 
 export interface SetupRequest extends Request {
 
-  appName : string;
+  tasks : Array<string>;
 
   sites : Array<string>;
 

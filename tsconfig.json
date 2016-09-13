@@ -18,6 +18,7 @@
     "src/requests.ts",
     "src/Pattern.ts",
     "src/WebService.ts",
-    "tests/DeployStatementTest.ts"
+    "tests/DeployStatementTest.ts",
+    "tests/SetupStatementTest.ts"
   ]
 }

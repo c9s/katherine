@@ -103,7 +103,7 @@ class SetupProcess extends BaseProcess {
     const action = new SetupAction(worker.deployConfig);
     const deployment = Deployment.create(worker.deployConfig, uuid.v4());
     this.bindActionProgress(action);
-    return action.run(deployment, request.sites).then((mapResult : SummaryMap) => {
+    return action.run(deployment, request.sites, request.tasks).then((mapResult : SummaryMap) => {
       this.complete(buildAttachmentsFromSummaryMap(request, null, mapResult));
       return Promise.resolve(mapResult);
     });

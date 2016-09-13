@@ -6,8 +6,8 @@ export class SetupStatement extends Statement {
 
   constructor() {
     super();
-    this.patterns.push(new Pattern("(?:please )?setup :appName (?:to|on) :sites(?: (?:servers?|sites?))?(?: :logging)?", "i", {
-      "appName": { "pattern": "[a-zA-Z-]+" },
+    this.patterns.push(new Pattern("(?:please )?setup(?: :tasks)? (?:to|on) :sites(?: (?:servers?|sites?))?(?: :logging)?", "i", {
+      "tasks": {  "pattern": "[a-zA-Z-_,]+" },
       "sites": { "pattern": "[a-zA-Z-_,]+" },
       "logging": { "pattern": "verbosely|silently|debugly" }
     }));
@@ -21,6 +21,9 @@ export class SetupStatement extends Statement {
       if (matches) {
         if (typeof matches.sites === "string") {
           matches.sites = matches.sites.split(/,/);
+        }
+        if (typeof matches.tasks === "string") {
+          matches.tasks = matches.tasks.split(/,/);
         }
         switch (matches.logging) {
           case "verbosely":
