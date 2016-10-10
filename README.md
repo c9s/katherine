@@ -50,7 +50,8 @@ Step6: Run!
 
 ## Commands
 
-    @botname: please deploy {appName} from {branchName} branch to {siteName}
+    @botname: please deploy {appName} from {branchName} branch to {siteName} server.
+    @botname: please show me the logs on {siteName} server.
 
 ## Example Config
 
