@@ -7,4 +7,4 @@ we refactored Typeloy with a nice action API.
 
 And therefore, **Delivery** can use Typeloy API to ship the softwares to the target servers.
 
-[Imgur](http://i.imgur.com/Y4y9CSK.png)
+![Imgur](http://i.imgur.com/Y4y9CSK.png)
