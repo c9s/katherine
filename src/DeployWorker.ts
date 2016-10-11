@@ -218,7 +218,7 @@ class DeployProcess extends BaseProcess {
 
     const cleanForce = () => {
 
-      let linkerDir = path.resolve(this.deployConfig.app.directory, ".meteor/local/bundler-cache/linker");
+      let linkerDir = path.resolve(this.worker.deployConfig.app.directory, ".meteor/local/bundler-cache/linker");
 
       if (fs.existsSync(linkerDir)) {
         this.progress(`Removing linker cache files...`);
