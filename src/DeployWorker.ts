@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
 const uuid = require('uuid');
 const _ = require('underscore');
@@ -217,6 +217,14 @@ class DeployProcess extends BaseProcess {
     }
 
     const cleanForce = () => {
+
+      let linkerDir = path.resolve(this.deployConfig.app.directory, ".meteor/local/bundler-cache/linker");
+
+      if (fs.existsSync(linkerDir)) {
+        this.progress(`Removing linker cache files...`);
+        fs.emptyDirSync(linkerDir);
+      }
+
       this.progress(`Removing untracked files...`);
       return worker.repo.clean({ 'force': true, 'removeUntrackedDirectory': true }).then(({ error, stdout, stderr }) => {
         this.debug(createAttachmentsFromStdout("Repository is now cleaned.", stdout));
