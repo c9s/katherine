@@ -123,16 +123,16 @@ class LogsProcess extends BaseProcess {
     const worker = this.worker;
     const request = this.currentRequest;
     const self = this;
-    const action = new LogsAction(worker.deployConfig, {
-        "onStdout": (hostPrefix, data) => {
-            this.progress(pretext(hostPrefix + ": " + data));
-        },
-        "onStderr": (hostPrefix, data) => {
-            this.progress(pretext(hostPrefix + ": " + data));
-        },
-    });
+    const action = new LogsAction(worker.deployConfig);
     const deployment = Deployment.create(worker.deployConfig, uuid.v4());
-    return action.run(deployment, request.sites, {});
+    return action.run(deployment, request.sites, {
+      "onStdout": (hostPrefix, data) => {
+        this.progress(pretext(hostPrefix + ": " + data));
+      },
+      "onStderr": (hostPrefix, data) => {
+        this.progress(pretext(hostPrefix + ": " + data));
+      }
+    });
   }
 }
 
