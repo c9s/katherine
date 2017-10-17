@@ -25,7 +25,7 @@ const slackWeb = new slack.WebClient(token);
 const BROADCAST_CHANNEL = "jobs";
 const MASTER_CHANNEL = "master";
 
-const config = JSON.parse(fs.readFileSync('delivery.json'));
+const config = JSON.parse(fs.readFileSync('katherine.json'));
 const sub = Redis.createClient(config.redis);
 const pub = Redis.createClient(config.redis);
 
@@ -64,7 +64,7 @@ abstract class SlackBot {
     this.messageQueue = Promise.resolve({});
   }
 
-  sendMessage(message, channel) {
+  public sendMessage(message, channel) {
     if (typeof message === "object") {
       this.sendWebAPIMessage(message, channel);
     } else {
@@ -72,7 +72,7 @@ abstract class SlackBot {
     }
   }
 
-  sendWebAPIMessage(message, channel) {
+  public sendWebAPIMessage(message, channel) {
     this.messageQueue.then(() => {
       return new Promise(resolve => {
         let msg = _.extend(message, {
@@ -84,7 +84,7 @@ abstract class SlackBot {
     });
   }
 
-  sendRtmMessage(message, channel) {
+  public sendRtmMessage(message, channel) {
     this.messageQueue.then(() => {
       return new Promise(resolve => {
         this.rtm.sendMessage(message, channel, resolve);
@@ -98,14 +98,11 @@ class DeployBot extends SlackBot {
 
   protected startData;
 
-  protected workerPool : WorkerPool;
-
   protected config;
 
-  constructor(rtm, workerPool : WorkerPool, config) {
+  constructor(rtm, config) {
     super(rtm);
     this.config = config;
-    this.workerPool = workerPool;
 
     this.rtm.on(CLIENT_EVENTS.RTM.AUTHENTICATED, this.handleStartData.bind(this));
     this.rtm.on(RTM_EVENTS.MESSAGE, this.handleMessage.bind(this));
@@ -194,6 +191,7 @@ class DeployBot extends SlackBot {
         const request = s.parse(sentence);
         if (request) {
           request.fromMessage = message;
+          /*
           this.workerPool.findIdleWorker().then((workerId) => {
             console.log(`job: ${jobType} => worker ${workerId}`);
             pub.publish(workerId, JSON.stringify({ 'type': jobType, 'request' : request }));
@@ -201,6 +199,7 @@ class DeployBot extends SlackBot {
             console.log(e);
             this.rtm.sendMessage(`Error: ${e}`, message.channel);
           });
+          */
           return;
         }
       }
@@ -218,43 +217,11 @@ class DeployBot extends SlackBot {
   }
 }
 
-
-function prepareWorkingRepositoryPool(config) {
-  if (!config.source) {
-    throw new Error('config.source is undefined.');
-  }
-  const repo = config.source.repository;
-  for (const poolName in config.pool) {
-    const poolDirectory = config.pool[poolName];
-    if (!fs.existsSync(poolDirectory)) {
-      console.log(`Cloning ${poolName} => ${poolDirectory} ...`);
-      child_process.execSync(`git clone ${repo} ${poolDirectory}`, { stdio: [0,1,2], encoding: 'utf8' } );
-    }
-
-    console.log(`Checking out master...`);
-    child_process.execSync('git checkout master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
-    child_process.execSync('git reset --hard', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
-    /*
-    console.log(`Pull and rebase from remote origin to master`);
-    child_process.execSync('git pull --rebase origin master', { stdio: [0,1,2], encoding: 'utf8', cwd: poolDirectory });
-    */
-  }
-}
-
-
-console.log('===> Preparing workingRepository pool');
-prepareWorkingRepositoryPool(config);
-
-if (fs.existsSync('typeloy.json')) {
-  const typeloyConfig = JSON.parse(fs.readFileSync('typeloy.json'));
-  config.deploy = typeloyConfig;
-}
-
+/*
 const workerPool = new WorkerPool(config);
-const bot = new DeployBot(rtm, workerPool, config);
-console.log("===> Forking deploy workers ...");
 workerPool.fork();
-
+*/
+const bot = new DeployBot(rtm, config);
 if (config.web) {
   const httpServer = child_process.fork(path.resolve(__dirname + '/../src/WebService'), []);
 }

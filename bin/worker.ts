@@ -4,7 +4,7 @@ import {RedisClient} from "redis";
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "../src/channels";
 import {DeployWorker} from "../src/DeployWorker";
 
-const config = JSON.parse(fs.readFileSync('delivery.json'));
+const config = JSON.parse(fs.readFileSync('katherine.json'));
 const sub = new RedisClient(config.redis);
 const pub = new RedisClient(config.redis);
 console.log("===> Starting worker: ", process.argv[2], process.argv[3]);
