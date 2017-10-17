@@ -6,7 +6,6 @@ const slack = require('@slack/client');
 const _ = require('underscore');
 import child_process = require('child_process');
 
-import {DeployAction, GitSync, GitRepo} from "typeloy";
 import {DeployStatement, SetupStatement, RestartStatement, LogsStatement} from "../src/statements";
 import {WorkerPool} from "../src/WorkerPool";
 

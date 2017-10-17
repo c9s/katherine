@@ -39,7 +39,7 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@slack/client": "^3.5.3",
+    "@slack/client": "^3.14.1",
     "@types/archiver": "^2.0.1",
     "@types/chai": "^4.0.4",
     "@types/eventemitter3": "^2.0.2",
