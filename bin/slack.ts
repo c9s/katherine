@@ -1,5 +1,3 @@
-/// <reference path="../node_modules/typeloy/lib/src/index.d.ts" />
-
 const fs = require('fs');
 const path = require('path');
 const slack = require('@slack/client');
@@ -9,15 +7,18 @@ import child_process = require('child_process');
 import {DeployStatement, SetupStatement, RestartStatement, LogsStatement} from "../src/statements";
 import {WorkerPool} from "../src/WorkerPool";
 
+const token = process.env.SLACK_API_TOKEN || '';
+
 const MemoryDataStore = slack.MemoryDataStore;
 const RtmClient = slack.RtmClient;
-const token = process.env.SLACK_API_TOKEN || '';
 
 const Redis = require("redis");
 
+
+const dataStore = new MemoryDataStore();
 const rtm = new RtmClient(token, {
-  logLevel: 'debug',
-  dataStore: new MemoryDataStore(),
+  // logLevel: 'debug',
+  dataStore: dataStore,
 });
 
 const slackWeb = new slack.WebClient(token);
@@ -209,15 +210,36 @@ class DeployBot extends SlackBot {
     }
   }
 
-  handleChannelJoined(message) {
+  protected handleChannelJoined(message) {
     console.log("CHANNEL_JOINED", message);
   }
 
-  handleStartData(rtmStartData) {
+  protected handleStartData(rtmStartData) {
     console.log(`Logged in as ${rtmStartData.self.name} of team ${rtmStartData.team.name}, but not yet connected to a channel`);
     this.startData = rtmStartData;
+
+    const chan = dataStore.getChannelByName('general');
+    console.log("channel", chan);
+
+    slackWeb.channels.history(chan.id, {
+      "count": 100,
+      "oldest": (new Date("2017-01-01")).getTime() / 1000,
+    }, (err, channelHistory) => {
+      console.log(err,
+        channelHistory.oldest, // 1483228800
+        channelHistory.messages,
+        /*
+        [ { type: 'message',
+          user: 'U10AAPXXX',
+          text: 'text...',
+          attachments: [Array],
+          ts: '1508303169.000048' }, ... ]
+         */
+      );
+    });
   }
 }
+
 
 /*
 const workerPool = new WorkerPool(config);
