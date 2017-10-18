@@ -1,13 +1,16 @@
 
 const _ = require('underscore');
 
-import path = require("path");
-
-import child_process = require('child_process');
+import * as path from "path";
+import {fork,ChildProcess} from 'child_process';
 import {EventEmitter} from 'events';
 const Redis = require("redis");
 
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
+
+interface WorkerMap<T> {
+    [key: string]: T;
+}
 
 export class WorkerPool extends EventEmitter {
 
@@ -15,19 +18,18 @@ export class WorkerPool extends EventEmitter {
 
   protected poolConfig : Object;
 
-  protected workerProcesses : Object;
+  protected workerProcesses : WorkerMap<ChildProcess> = {};
 
   constructor(config) {
     super();
     this.redis = Redis.createClient(config.redis);
     this.poolConfig = config.pool;
-    this.workerProcesses = {};
   }
 
   public fork() {
     for (let poolName in this.poolConfig) {
       const poolDirectory = this.poolConfig[poolName];
-      const worker = child_process.fork(path.resolve(__dirname + '/../bin/worker'), [poolName, poolDirectory]);
+      const worker : ChildProcess = fork(path.resolve(__dirname + '/../bin/worker'), [poolName, poolDirectory]);
       this.workerProcesses[poolName] = worker;
     }
   }

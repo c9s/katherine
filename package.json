@@ -48,6 +48,7 @@
     "@types/fbemitter": "^2.0.32",
     "@types/fibers": "0.0.29",
     "@types/mocha": "^2.2.43",
+    "@types/node": "^8.0.44",
     "@types/redis": "^2.6.1",
     "chai": "^3.5.0",
     "mocha": "^3.0.0",

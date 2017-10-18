@@ -16,9 +16,10 @@ const token = process.env.SLACK_API_TOKEN || '';
 const Redis = require("redis");
 
 const rtm = new RtmClient(token, {
-  // logLevel: 'debug',
+  logLevel: 'debug',
   dataStore: new MemoryDataStore(),
 });
+
 const slackWeb = new slack.WebClient(token);
 
 const BROADCAST_CHANNEL = "jobs";
@@ -114,7 +115,6 @@ class DeployBot extends SlackBot {
       console.log('Connected to ' + team.name + ' as ' + user.name);
     });
 
-
     sub.on("message", this.handleMasterMessage.bind(this));
     sub.on("subscribe", (channel, count) => {
       console.log("redis.subscribe", channel, count);
@@ -122,9 +122,11 @@ class DeployBot extends SlackBot {
     sub.subscribe(MASTER_CHANNEL);
   }
 
-  handleMasterMessage(channel : string, message : string) {
-    let payload = JSON.parse(message);
+  protected handleMasterMessage(channel : string, message : string) {
+    const payload = JSON.parse(message);
+
     // console.log('handleMasterMessage', channel, JSON.stringify(payload, null, "  "));
+    /*
     switch (payload.type) {
       case "connect":
         // this.rtm.sendMessage(`worker ${payload.name} connected.`, payload.currentRequest.fromMessage.channel);
@@ -146,9 +148,10 @@ class DeployBot extends SlackBot {
         }
         break;
     }
+    */
   }
 
-  handleMessage(message) {
+  protected handleMessage(message) {
     let user = this.rtm.dataStore.getUserById(message.user);
     let channel = this.rtm.dataStore.getChannelGroupOrDMById(message.channel);
 
