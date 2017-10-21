@@ -1,18 +1,23 @@
 const fs = require('fs');
 const path = require('path');
 const slack = require('@slack/client');
-const _ = require('underscore');
+
+import * as _ from "underscore";
 
 namespace Slack {
   export interface Channel {
     id : string;
+
     name : string;
+
     is_channel : boolean;
 
     created: number;
+
     creator : string;
 
     is_archived : boolean;
+
     is_general : boolean;
 
     members : Array<string>;
@@ -36,16 +41,30 @@ import child_process = require('child_process');
 
 import {DeployStatement, SetupStatement, RestartStatement, LogsStatement} from "../src/statements";
 import {WorkerPool} from "../src/WorkerPool";
-import {MongoClient} from 'mongodb';
+import * as mongo from "mongodb";
 
 const token = process.env.SLACK_API_TOKEN || '';
 
 const MemoryDataStore = slack.MemoryDataStore;
 const RtmClient = slack.RtmClient;
 
-const mongoUrl = 'mongodb://localhost:27017/test';
+
+async function connectMongo(url : string) : Promise<mongo.Db> {
+  return new Promise<mongo.Db>((resolve, reject) => {
+      mongo.MongoClient.connect(url, (err, db) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(db);
+        }
+      });
+  });
+}
+
 
 import * as redis from "redis";
+
+const mongoUrl = 'mongodb://localhost:27017/test';
 
 const dataStore = new MemoryDataStore();
 const rtm = new RtmClient(token, {
@@ -98,11 +117,11 @@ class ChannelHistoryFetcher {
     this.client = client;
   }
 
-  public fetch(channelId : string, fromDate : Date) : Promise<any> {
+  public fetch(channelId : string, oldest : string) : Promise<any> {
     return new Promise<any>(resolve => {
       this.client.channels.history(channelId, {
-        "count": 100,
-        "oldest": fromDate.getTime() / 1000,
+        "count": 20,
+        "oldest": oldest,
       }, (err, info) => {
         resolve(info);
       });
@@ -114,23 +133,74 @@ class ChannelHistorySynchronizer {
 
   protected dataStore;
 
-  protected fetcher;
+  protected fetcher : ChannelHistoryFetcher;
 
   constructor(dataStore, fetcher : ChannelHistoryFetcher) {
+
     this.dataStore = dataStore;
     this.fetcher = fetcher;
   }
 
   public async syncChannel(chan : Slack.Channel) {
-    const response = await this.fetcher.fetch(chan.id, new Date("2017-01-01"));
+    const db = await connectMongo(mongoUrl);
+    // const col = db.collection("channel-" + chan.id + "_" + chan.name);
+    const col = db.collection("messages");
+
+    let ts = ((new Date()).getTime() / 1000) - (3600*24*30);
+
+    const lastMsg = await col.findOne({
+      "channel": chan.id,
+    }, { "sort": { "ts": 1 }, "limit": 1 });
+    if (lastMsg) {
+      ts = lastMsg.ts;
+    }
+
+    const sync = async (ts) => {
+      console.log("Fetching",chan.id, ts);
+      const response = await this.fetcher.fetch(chan.id, ts);
+      const messages = response.messages;
+      if (messages.length == 0) {
+        return response;
+      }
+
+
+      for (let msg of response.messages) {
+        console.log("Message", msg.text);
+      }
+
+      const composeMessages = messages.map((m) => {
+        m.channel = chan.id;
+        return m;
+      });
+
+      col.insert(composeMessages, (err, result : mongo.InsertWriteOpResult) => {
+        if (err) {
+          console.error(err);
+        } else {
+          console.log("Inserted", result.insertedCount);
+        }
+      });
+      return response;
+    };
+    let response = await sync(ts);
+    while (response.has_more) {
+      const latest = response.messages[0];
+      response = await sync(latest.ts);
+    }
+
+    /*
+    */
+
+    /*
     for (let msg of response.messages) {
-      console.log("Message",msg);
+      console.log("Message", msg);
       if (msg.replies) {
         for (let reply of msg.replies) {
           console.log("Reply",reply);
         }
       }
     }
+     */
   }
 
   public sync() {
