@@ -34,6 +34,22 @@ namespace Slack {
 
     has_pins : boolean;
   }
+
+  export interface Message {
+
+    type : string;
+
+    channel : string;
+
+    user : string;
+
+    text : string;
+
+    ts : string;
+
+    source_team : string;
+
+  }
 }
 
 
@@ -150,7 +166,7 @@ class ChannelHistorySynchronizer {
 
     const lastMsg = await col.findOne({
       "channel": chan.id,
-    }, { "sort": { "ts": 1 }, "limit": 1 });
+    }, { "sort": { "ts": -1 }, "limit": 1 });
     if (lastMsg) {
       ts = lastMsg.ts;
     }
@@ -162,7 +178,6 @@ class ChannelHistorySynchronizer {
       if (messages.length == 0) {
         return response;
       }
-
 
       for (let msg of response.messages) {
         console.log("Message", msg.text);
@@ -187,20 +202,6 @@ class ChannelHistorySynchronizer {
       const latest = response.messages[0];
       response = await sync(latest.ts);
     }
-
-    /*
-    */
-
-    /*
-    for (let msg of response.messages) {
-      console.log("Message", msg);
-      if (msg.replies) {
-        for (let reply of msg.replies) {
-          console.log("Reply",reply);
-        }
-      }
-    }
-     */
   }
 
   public sync() {
@@ -321,6 +322,9 @@ class DeployBot extends SlackBot {
         channel.name
       );
     }
+
+    console.log(message);
+
 
     const parseDeployStatement = new RegExp('');
     const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
