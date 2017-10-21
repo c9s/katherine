@@ -47,9 +47,14 @@ namespace Slack {
 
     ts : string;
 
+    thread_ts ?: string;
+
     source_team : string;
 
+    // "reply_to":17276
+    reply_to ?: number;
   }
+
 }
 
 
