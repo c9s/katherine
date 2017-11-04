@@ -4,7 +4,6 @@ const uuid = require('uuid');
 const _ = require('underscore');
 
 import {RedisClient} from "redis";
-import {DeployAction, SetupAction, RestartAction, LogsAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {Request} from "./requests/Request";
 import {DeployRequest} from "./requests/DeployRequest";
 import {SetupRequest} from "./requests/SetupRequest";

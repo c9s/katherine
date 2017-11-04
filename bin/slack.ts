@@ -59,8 +59,6 @@ namespace Slack {
 
 
 import child_process = require('child_process');
-
-import {DeployStatement, SetupStatement, RestartStatement, LogsStatement} from "../src/statements";
 import {WorkerPool} from "../src/WorkerPool";
 import * as mongo from "mongodb";
 
@@ -193,7 +191,7 @@ class ChannelHistorySynchronizer {
         return m;
       });
 
-      col.insert(composeMessages, (err, result : mongo.InsertWriteOpResult) => {
+      col.insert(composeMessages, (err, result) => {
         if (err) {
           console.error(err);
         } else {
@@ -331,7 +329,6 @@ class DeployBot extends SlackBot {
     console.log(message);
 
 
-    const parseDeployStatement = new RegExp('');
     const parseMentionUserId = new RegExp('^<@(\\w+)>:\\s*');
 
     if (!message.text) {
@@ -347,10 +344,7 @@ class DeployBot extends SlackBot {
     const objectId = matches[1];
 
     const statements = {
-      'deploy'  : new DeployStatement,
-      'setup'   : new SetupStatement,
-      'restart' : new RestartStatement,
-      'logs'    : new LogsStatement,
+      // 'deploy'  : new DeployStatement,
     };
 
     // talking to me...

@@ -12,11 +12,9 @@
   "exclude": ["node_modules"],
   "files": [
     "bin/slack.ts",
-    "bin/worker.ts",
     "src/statements.ts",
     "src/requests.ts",
     "src/Pattern.ts",
-    "src/WebService.ts",
     "tests/DeployStatementTest.ts",
     "tests/SetupStatementTest.ts"
   ]

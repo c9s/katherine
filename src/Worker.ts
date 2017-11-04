@@ -3,7 +3,6 @@ const path = require('path');
 const uuid = require('uuid');
 const _ = require('underscore');
 
-import {DeployAction, GitSync, GitRepo, Deployment, Config, ConfigParser, SummaryMap, SummaryMapResult, SummaryMapHistory, hasSummaryMapErrors} from "typeloy";
 import {RedisClient} from "redis";
 
 import {WORKER_STATUS, MASTER_CHANNEL, BROADCAST_CHANNEL} from "./channels";
